@@ -379,7 +379,9 @@ export function QuestionForm({
                   }}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select subject" />
+                    <SelectValue>
+  {subjects.find((s) => s.id === field.value)?.name || "Select subject"}
+</SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     {subjects.map((s) => (
