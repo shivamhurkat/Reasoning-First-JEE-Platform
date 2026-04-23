@@ -57,6 +57,9 @@
 ├── supabase/
 │   └── migrations/       # Ordered SQL migration files (0001_init.sql, ...)
 │
+├── scripts/
+│   └── seed-questions.ts # Standalone tsx script: seeds 10 JEE-style questions
+│
 ├── middleware.ts         # Root Next.js middleware — calls Supabase `updateSession`
 ├── public/               # Static assets
 ├── .env.local.example    # Template for required env vars (copy to .env.local)
@@ -86,11 +89,21 @@
 | `/auth/signout` | POST only; no-op if no session | `app/auth/signout/route.ts` |
 | `/` | **Protected** (dashboard home) | `app/(dashboard)/page.tsx` |
 | `/practice`, `/progress`, `/settings` | **Protected** | `app/(dashboard)/<name>/page.tsx` |
+| `/admin/subjects` | **Admin-only** | `app/(admin)/admin/subjects/page.tsx` |
+| `/admin/questions` | **Admin-only** | `app/(admin)/admin/questions/page.tsx` |
+| `/admin/questions/new` | **Admin-only** | `app/(admin)/admin/questions/new/page.tsx` |
+| `/admin/questions/[id]/edit` | **Admin-only** | `app/(admin)/admin/questions/[id]/edit/page.tsx` |
+| `/admin/questions/[id]/solutions` | **Admin-only** | `app/(admin)/admin/questions/[id]/solutions/page.tsx` |
 
-Protection is enforced in `app/(dashboard)/layout.tsx` — it calls
-`supabase.auth.getUser()` and `redirect('/login')` if the user is null. The
-session cookie itself is refreshed on **every** request by the root
-`middleware.ts` → `updateSession` helper.
+Protection is enforced in two server-component layouts:
+
+- `app/(dashboard)/layout.tsx` — redirects to `/login` if no user.
+- `app/(admin)/layout.tsx` — redirects to `/login` if no user, to `/` (silently, no toast) if `role !== 'admin'`. Silent redirect avoids leaking that `/admin/*` exists.
+
+The session cookie itself is refreshed on **every** request by the root
+`middleware.ts` → `updateSession` helper. Every admin server action also
+re-checks role via `adminClient()` — defense in depth so a mis-pointed
+client can't call an action directly.
 
 ### Auth flow (text diagram)
 
@@ -340,11 +353,117 @@ Paste `supabase/migrations/0001_init.sql` into **Supabase Dashboard → SQL
 Editor → New query → Run**. Requires `pgvector` to already be enabled on the
 project (Dashboard → Database → Extensions → `vector`).
 
+## Admin Tool
+
+The admin surface at `/admin/*` is the content ingestion pipeline: curriculum
+management, question authoring, and solution taxonomy. It lives in its own
+route group (`app/(admin)/`) with its own layout and top bar — the student
+sidebar is intentionally hidden.
+
+### Route map
+
+```
+/admin/subjects                       Curriculum tree: subjects → chapters → topics
+/admin/questions                      Filterable library with bulk publish/archive/delete
+/admin/questions/new                  Author a new question (draft)
+/admin/questions/[id]/edit            Edit a question + danger-zone delete
+/admin/questions/[id]/solutions       6-type reasoning-first solution manager
+```
+
+### RLS protection
+
+`/admin/*` is protected by **three concentric layers**:
+
+1. **Layout guard** (`app/(admin)/layout.tsx`): server component,
+   `getUser()` → check `user_profiles.role = 'admin'`. Non-admin redirects
+   silently to `/`.
+2. **Server action guards** (`app/(admin)/admin/**/actions.ts`): every
+   mutation calls `adminClient()` which re-checks the role. Returns a
+   discriminated `{ ok: false, error }` on failure.
+3. **Postgres RLS**: the schema already has
+   `"admins manage all questions"` / `"admins manage all solutions"` policies
+   that gate writes to admin role. Even if a request somehow reached the DB
+   as a non-admin user, the row-level policy would refuse.
+
+Seed + curriculum writes go through the session client (admin user), not
+the service role, so RLS still applies end-to-end.
+
+### Adding a new question (end-to-end)
+
+1. **Curriculum first.** The question form requires Subject → Chapter →
+   Topic. If `/admin/subjects` is empty, click **Seed JEE Curriculum**
+   (one-time, only allowed on an empty tree) or add each level manually.
+2. **Click "New Question"** from `/admin/questions` (or top-bar link).
+3. **Taxonomy**: pick Subject → Chapter → Topic (cascading selects).
+4. **Type**: pick `single_correct`, `multi_correct`, `numerical`, or
+   `subjective`. The Answer section re-renders to match.
+5. **Question text**: use the MathEditor. `$x^2$` → inline math, `$$...$$` →
+   block math. Toolbar buttons insert common LaTeX snippets at the cursor.
+6. **Answer section** (one of):
+   - MCQ: 4–6 options, each with its own MathEditor. Mark correct via radio
+     (single) or checkboxes (multi).
+   - Numerical: number + tolerance (default ±0.01).
+   - Subjective: a reference / rubric MathEditor.
+7. **Metadata**: difficulty slider (1–5), estimated time, source (e.g.
+   `JEE Mains 2023 Shift 1`), year.
+8. **Save**. Three choices: **Save & Add Another** (preserves taxonomy,
+   clears the rest), **Save as Draft → Solutions** (default CTA, goes to
+   the solutions manager), or **Cancel**.
+
+### How solutions are structured
+
+Each question owns **up to 6 solutions**, one per taxonomy type. Types are
+a CHECK-constrained text column (`solutions.solution_type`):
+
+| Type | Purpose |
+| --- | --- |
+| `standard` | Textbook step-by-step solve |
+| `logical` | Principle-driven reasoning (no heavy computation) |
+| `elimination` | Rule options out using dimensions, limits, special cases |
+| `shortcut` | Pattern or formula that cuts time dramatically |
+| `pattern` | Connects this question to a broader class |
+| `trap_warning` | What usually goes wrong and how to avoid it |
+
+Each solution row carries:
+
+- `title` (optional short descriptor), `content` (MathEditor markdown+LaTeX)
+- `steps` (jsonb): ordered `{ step_number, text, explanation? }`
+- `time_estimate_seconds`, `difficulty_to_execute` (1–5)
+- `when_to_use`, `when_not_to_use`, `prerequisites`
+- `status`: `draft` / `published` / `ai_generated_unverified` / `flagged`
+
+The **completeness bar** on the solutions page counts covered types. A
+question is considered "complete enough for students" at ≥ 3 solution
+types — typically `standard` + one alternative + `trap_warning`.
+
+Typed jsonb shapes for `options`, `correct_answer`, and `steps` are
+documented in `lib/types/database.types.ts` and re-declared in the server
+actions via Zod so client input is validated twice.
+
+### Seed script
+
+```bash
+npm run seed:questions
+```
+
+Runs `scripts/seed-questions.ts` via `tsx --env-file=.env.local`. It uses
+the **service role key** to bypass RLS for bulk inserts. The script is
+**idempotent** — for each question it looks for a match on
+`source + year + question_text prefix` before inserting, so re-running is
+safe.
+
+Preconditions:
+- `NEXT_PUBLIC_SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` in `.env.local`.
+- Curriculum already seeded (`/admin/subjects → Seed JEE Curriculum`).
+  The script resolves topic IDs from the canonical slug tree in
+  `lib/constants/jee-curriculum.ts`.
+
 ## Commands
 
 ```bash
-npm run dev      # Start dev server
-npm run build    # Production build
-npm run start    # Run production build
-npm run lint     # ESLint
+npm run dev               # Start dev server
+npm run build             # Production build
+npm run start             # Run production build
+npm run lint              # ESLint
+npm run seed:questions    # Bulk-insert 10 JEE-style questions + solutions
 ```
