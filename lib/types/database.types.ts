@@ -394,6 +394,7 @@ export type Database = {
           estimated_time_seconds: number
           id: string
           options: Json | null
+          question_image_url: string | null
           question_text: string
           question_type: string
           source: string | null
@@ -411,6 +412,7 @@ export type Database = {
           estimated_time_seconds?: number
           id?: string
           options?: Json | null
+          question_image_url?: string | null
           question_text: string
           question_type: string
           source?: string | null
@@ -428,6 +430,7 @@ export type Database = {
           estimated_time_seconds?: number
           id?: string
           options?: Json | null
+          question_image_url?: string | null
           question_text?: string
           question_type?: string
           source?: string | null
@@ -513,6 +516,7 @@ export type Database = {
           id: string
           prerequisites: string | null
           question_id: string
+          solution_image_url: string | null
           solution_type: string
           source: string | null
           status: string
@@ -535,6 +539,7 @@ export type Database = {
           id?: string
           prerequisites?: string | null
           question_id: string
+          solution_image_url?: string | null
           solution_type: string
           source?: string | null
           status?: string
@@ -557,6 +562,7 @@ export type Database = {
           id?: string
           prerequisites?: string | null
           question_id?: string
+          solution_image_url?: string | null
           solution_type?: string
           source?: string | null
           status?: string
@@ -742,6 +748,7 @@ export type Database = {
           last_active_date: string | null
           longest_streak: number
           onboarded_at: string | null
+          phone: string | null
           role: string
           school: string | null
           state: string | null
@@ -759,6 +766,7 @@ export type Database = {
           last_active_date?: string | null
           longest_streak?: number
           onboarded_at?: string | null
+          phone?: string | null
           role?: string
           school?: string | null
           state?: string | null
@@ -776,6 +784,7 @@ export type Database = {
           last_active_date?: string | null
           longest_streak?: number
           onboarded_at?: string | null
+          phone?: string | null
           role?: string
           school?: string | null
           state?: string | null

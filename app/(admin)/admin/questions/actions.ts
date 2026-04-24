@@ -37,15 +37,13 @@ async function adminClient(): Promise<AdminClient> {
 
 const optionSchema = z.object({
   id: z.string().min(1),
-  text: z.string().min(1, "Option text required"),
+  text: z.string(), // empty allowed for image-based questions
 })
 
 const baseQuestionSchema = z.object({
   topic_id: z.string().uuid("Topic required"),
-  question_text: z
-    .string()
-    .trim()
-    .min(10, "Question must be at least 10 characters"),
+  question_text: z.string().trim(),
+  question_image_url: z.string().optional().nullable(),
   difficulty: z.number().int().min(1).max(5),
   estimated_time_seconds: z.number().int().min(10).max(3600),
   source: z.string().trim().max(200).optional().nullable(),
@@ -118,6 +116,9 @@ export async function createQuestion(
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input" }
   }
+  if (!parsed.data.question_image_url && parsed.data.question_text.trim().length < 10) {
+    return { ok: false, error: "Question must have at least 10 characters of text, or include an image" }
+  }
   const client = await adminClient()
   if (!client.ok) return { ok: false, error: client.error }
 
@@ -128,6 +129,7 @@ export async function createQuestion(
     .insert({
       topic_id: parsed.data.topic_id,
       question_text: parsed.data.question_text,
+      question_image_url: parsed.data.question_image_url ?? null,
       question_type: parsed.data.question_type,
       options,
       correct_answer,
@@ -156,6 +158,9 @@ export async function updateQuestion(
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input" }
   }
+  if (!parsed.data.question_image_url && parsed.data.question_text.trim().length < 10) {
+    return { ok: false, error: "Question must have at least 10 characters of text, or include an image" }
+  }
   const client = await adminClient()
   if (!client.ok) return { ok: false, error: client.error }
 
@@ -166,6 +171,7 @@ export async function updateQuestion(
     .update({
       topic_id: parsed.data.topic_id,
       question_text: parsed.data.question_text,
+      question_image_url: parsed.data.question_image_url ?? null,
       question_type: parsed.data.question_type,
       options,
       correct_answer,

@@ -44,6 +44,7 @@ export default async function EditQuestionPage({
     id: string
     topic_id: string
     question_text: string
+    question_image_url: string | null
     question_type:
       | "single_correct"
       | "multi_correct"
@@ -89,6 +90,7 @@ export default async function EditQuestionPage({
           chapter_id: chapterId,
           topic_id: q.topic_id,
           question_text: q.question_text,
+          question_image_url: q.question_image_url,
           question_type: q.question_type,
           options: q.options,
           correct_answer: q.correct_answer,

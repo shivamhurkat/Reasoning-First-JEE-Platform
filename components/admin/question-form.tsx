@@ -16,6 +16,7 @@ import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { DifficultyPicker } from "@/components/admin/difficulty-picker"
+import { ImageUpload } from "@/components/admin/image-upload"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
   Select,
@@ -58,6 +59,7 @@ export type QuestionFormInitial = {
   chapter_id?: string | null
   topic_id: string
   question_text: string
+  question_image_url?: string | null
   question_type: "single_correct" | "multi_correct" | "numerical" | "subjective"
   options?: { id: string; text: string }[] | null
   correct_answer:
@@ -74,11 +76,11 @@ export type QuestionFormInitial = {
   status: "draft" | "published" | "archived" | "flagged"
 }
 
-// ---------- Zod (client-side mirror; server re-validates) ----------
+// ---------- Zod ----------
 
 const optionSchema = z.object({
   id: z.string().min(1),
-  text: z.string().min(1, "Option text required"),
+  text: z.string(), // empty text allowed for image questions
 })
 
 const formSchema = z
@@ -92,11 +94,12 @@ const formSchema = z
       "numerical",
       "subjective",
     ]),
-    question_text: z.string().trim().min(10, "Question must be at least 10 chars"),
+    question_text: z.string().trim(),
+    question_image_url: z.string(), // "" = no image
     options: z.array(optionSchema),
     correct_option_id: z.string(),
     correct_option_ids: z.array(z.string()),
-    numerical_value: z.string(), // number input held as string
+    numerical_value: z.string(),
     numerical_tolerance: z.string(),
     subjective_answer: z.string(),
     difficulty: z.number().int().min(1).max(5),
@@ -106,13 +109,35 @@ const formSchema = z
     status: z.enum(["draft", "published", "archived", "flagged"]),
   })
   .superRefine((val, ctx) => {
+    const hasImage = val.question_image_url !== ""
+
+    // Must have at least one of: text (≥10 chars) or image
+    if (!hasImage && val.question_text.trim().length < 10) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["question_text"],
+        message: "Question must be at least 10 characters, or upload an image",
+      })
+    }
+
     if (val.question_type === "single_correct") {
-      if (val.options.length < 4) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ["options"],
-          message: "At least 4 options required",
-        })
+      if (!hasImage) {
+        if (val.options.length < 4) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["options"],
+            message: "At least 4 options required",
+          })
+        }
+        for (let i = 0; i < val.options.length; i++) {
+          if (!val.options[i].text.trim()) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              path: ["options", i, "text"],
+              message: "Option text required",
+            })
+          }
+        }
       }
       if (!val.correct_option_id) {
         ctx.addIssue({
@@ -122,13 +147,25 @@ const formSchema = z
         })
       }
     }
+
     if (val.question_type === "multi_correct") {
-      if (val.options.length < 4) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ["options"],
-          message: "At least 4 options required",
-        })
+      if (!hasImage) {
+        if (val.options.length < 4) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["options"],
+            message: "At least 4 options required",
+          })
+        }
+        for (let i = 0; i < val.options.length; i++) {
+          if (!val.options[i].text.trim()) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              path: ["options", i, "text"],
+              message: "Option text required",
+            })
+          }
+        }
       }
       if (val.correct_option_ids.length === 0) {
         ctx.addIssue({
@@ -138,6 +175,7 @@ const formSchema = z
         })
       }
     }
+
     if (val.question_type === "numerical") {
       if (val.numerical_value.trim() === "" || !Number.isFinite(Number(val.numerical_value))) {
         ctx.addIssue({
@@ -154,6 +192,7 @@ const formSchema = z
         })
       }
     }
+
     if (val.question_type === "subjective") {
       if (val.subjective_answer.trim().length === 0) {
         ctx.addIssue({
@@ -168,6 +207,12 @@ const formSchema = z
 type FormValues = z.infer<typeof formSchema>
 
 const OPTION_LETTERS = ["a", "b", "c", "d", "e", "f"] as const
+const IMAGE_OPTIONS = [
+  { id: "a", text: "" },
+  { id: "b", text: "" },
+  { id: "c", text: "" },
+  { id: "d", text: "" },
+]
 
 // ---------- Component ----------
 
@@ -186,9 +231,14 @@ export function QuestionForm({
 }) {
   const router = useRouter()
   const [submitting, startTransition] = useTransition()
-  const [afterSave, setAfterSave] = useState<
-    "solutions" | "another" | "list"
-  >("solutions")
+  const [afterSave, setAfterSave] = useState<"solutions" | "another" | "list">(
+    "solutions"
+  )
+
+  // Image mode: "text" uses MathEditor, "image" uses ImageUpload
+  const [questionMode, setQuestionMode] = useState<"text" | "image">(
+    initial?.question_image_url ? "image" : "text"
+  )
 
   const defaultSubject: string = initial?.subject_id ?? ""
   const defaultChapter: string = initial?.chapter_id ?? ""
@@ -200,15 +250,11 @@ export function QuestionForm({
     topic_id: defaultTopic,
     question_type: initial?.question_type ?? "single_correct",
     question_text: initial?.question_text ?? "",
+    question_image_url: initial?.question_image_url ?? "",
     options:
       initial?.options && initial.options.length > 0
         ? initial.options
-        : [
-            { id: "a", text: "" },
-            { id: "b", text: "" },
-            { id: "c", text: "" },
-            { id: "d", text: "" },
-          ],
+        : IMAGE_OPTIONS,
     correct_option_id:
       initial?.correct_answer && (initial.correct_answer as { type?: string }).type === "single"
         ? ((initial.correct_answer as { value: string }).value ?? "")
@@ -258,7 +304,6 @@ export function QuestionForm({
 
   const optionsArray = useFieldArray({ control, name: "options" })
 
-  // If admin changes subject, reset chapter/topic. Similarly chapter → topic.
   const onSubjectChange = (id: string) => {
     setValue("subject_id", id)
     setValue("chapter_id", "")
@@ -269,12 +314,25 @@ export function QuestionForm({
     setValue("topic_id", "")
   }
 
+  const switchToImageMode = () => {
+    setQuestionMode("image")
+    // For MCQ types, reset options to 4 empty entries (image has the text)
+    if (qType === "single_correct" || qType === "multi_correct") {
+      optionsArray.replace(IMAGE_OPTIONS)
+    }
+  }
+
+  const switchToTextMode = () => {
+    setQuestionMode("text")
+    setValue("question_image_url", "")
+  }
+
   const onSubmit = (values: FormValues) => {
-    // Map form → server action shape
     let payload: QuestionInput
     const common = {
       topic_id: values.topic_id,
       question_text: values.question_text,
+      question_image_url: values.question_image_url || null,
       difficulty: values.difficulty,
       estimated_time_seconds: values.estimated_time_seconds,
       source: values.source.trim() || null,
@@ -284,6 +342,7 @@ export function QuestionForm({
           ? ("draft" as const)
           : values.status,
     }
+
     if (values.question_type === "single_correct") {
       payload = {
         ...common,
@@ -327,13 +386,13 @@ export function QuestionForm({
         if (afterSave === "solutions") {
           router.push(`/admin/questions/${res.data.id}/solutions`)
         } else if (afterSave === "another") {
-          // Preserve subject/chapter/topic, clear the rest.
           form.reset({
             ...defaultValues,
             subject_id: values.subject_id,
             chapter_id: values.chapter_id,
             topic_id: values.topic_id,
           })
+          setQuestionMode("text")
           window.scrollTo({ top: 0, behavior: "smooth" })
         } else {
           router.push("/admin/questions")
@@ -351,6 +410,11 @@ export function QuestionForm({
   }
 
   const formErrors = formState.errors
+
+  // For image MCQ: show simple A/B/C/D letter selector
+  const isImageMCQ =
+    questionMode === "image" &&
+    (qType === "single_correct" || qType === "multi_correct")
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="grid gap-6" noValidate>
@@ -471,12 +535,13 @@ export function QuestionForm({
         </CardContent>
       </Card>
 
-      {/* Type + Question text */}
+      {/* Type + Question content */}
       <Card>
         <CardHeader>
           <CardTitle>Question</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-4">
+          {/* Question type selector */}
           <div className="grid gap-2">
             <Label>Type</Label>
             <Controller
@@ -514,26 +579,98 @@ export function QuestionForm({
             />
           </div>
 
-          <Controller
-            control={control}
-            name="question_text"
-            render={({ field }) => (
-              <div className="grid gap-1">
-                <MathEditor
-                  label="Question text"
-                  value={field.value}
-                  onChange={field.onChange}
-                  placeholder="Write the question. Wrap math in $...$ (inline) or $$...$$ (block)."
-                  minHeight={160}
-                />
-                {formErrors.question_text ? (
-                  <p className="text-destructive text-xs">
-                    {formErrors.question_text.message}
+          {/* Mode toggle: Upload Image | Type Question */}
+          <div className="grid gap-2">
+            <Label>Content</Label>
+            <div className="flex gap-1 rounded-lg border p-1 w-fit">
+              <button
+                type="button"
+                onClick={switchToTextMode}
+                className={cn(
+                  "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+                  questionMode === "text"
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                Type Question
+              </button>
+              <button
+                type="button"
+                onClick={switchToImageMode}
+                className={cn(
+                  "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+                  questionMode === "image"
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                Upload Image
+              </button>
+            </div>
+          </div>
+
+          {/* Question content: image or text */}
+          {questionMode === "image" ? (
+            <Controller
+              control={control}
+              name="question_image_url"
+              render={({ field }) => (
+                <div className="grid gap-1">
+                  <ImageUpload
+                    value={field.value || null}
+                    onChange={(url) => field.onChange(url ?? "")}
+                    folder="questions"
+                  />
+                  {formErrors.question_image_url ? (
+                    <p className="text-destructive text-xs">
+                      {formErrors.question_image_url.message}
+                    </p>
+                  ) : null}
+                  <p className="text-xs text-muted-foreground">
+                    Upload a scan or photo of the question. Add any supplemental
+                    text below if needed.
                   </p>
-                ) : null}
-              </div>
-            )}
-          />
+                  {/* Optional supplemental text in image mode */}
+                  <Controller
+                    control={control}
+                    name="question_text"
+                    render={({ field: tf }) => (
+                      <MathEditor
+                        label="Supplemental text (optional)"
+                        value={tf.value}
+                        onChange={tf.onChange}
+                        placeholder="Additional context or formulas…"
+                        minHeight={80}
+                        compact
+                      />
+                    )}
+                  />
+                </div>
+              )}
+            />
+          ) : (
+            <Controller
+              control={control}
+              name="question_text"
+              render={({ field }) => (
+                <div className="grid gap-1">
+                  <MathEditor
+                    label="Question text"
+                    value={field.value}
+                    onChange={field.onChange}
+                    placeholder="Write the question. Wrap math in $...$ (inline) or $$...$$ (block)."
+                    minHeight={160}
+                  />
+                  {formErrors.question_text ? (
+                    <p className="text-destructive text-xs">
+                      {formErrors.question_text.message}
+                    </p>
+                  ) : null}
+                </div>
+              )}
+            />
+          )}
         </CardContent>
       </Card>
 
@@ -542,15 +679,95 @@ export function QuestionForm({
         <CardHeader>
           <CardTitle>Answer</CardTitle>
           <CardDescription>
-            {qType === "numerical"
-              ? "Numerical value and acceptable tolerance."
-              : qType === "subjective"
-                ? "A reference answer used by the grader."
-                : "Options and which one(s) are correct."}
+            {isImageMCQ
+              ? "Mark the correct option. The options are in the image."
+              : qType === "numerical"
+                ? "Numerical value and acceptable tolerance."
+                : qType === "subjective"
+                  ? "A reference answer used by the grader."
+                  : "Options and which one(s) are correct."}
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4">
-          {(qType === "single_correct" || qType === "multi_correct") && (
+          {/* Image MCQ: simple letter selector */}
+          {isImageMCQ && (
+            <div className="grid gap-3">
+              <div className="flex flex-wrap gap-3">
+                {(["a", "b", "c", "d"] as const).map((letter) => {
+                  if (qType === "single_correct") {
+                    return (
+                      <Controller
+                        key={letter}
+                        control={control}
+                        name="correct_option_id"
+                        render={({ field: cf }) => {
+                          const active = cf.value === letter
+                          return (
+                            <button
+                              type="button"
+                              onClick={() => cf.onChange(letter)}
+                              className={cn(
+                                "inline-flex size-12 items-center justify-center rounded-lg border text-sm font-semibold uppercase transition-colors",
+                                active
+                                  ? "border-primary bg-primary text-primary-foreground"
+                                  : "hover:border-primary/50 hover:bg-primary/5"
+                              )}
+                            >
+                              {letter.toUpperCase()}
+                            </button>
+                          )
+                        }}
+                      />
+                    )
+                  }
+                  // multi_correct
+                  return (
+                    <Controller
+                      key={letter}
+                      control={control}
+                      name="correct_option_ids"
+                      render={({ field: cf }) => {
+                        const active = cf.value.includes(letter)
+                        return (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (active) {
+                                cf.onChange(cf.value.filter((x) => x !== letter))
+                              } else {
+                                cf.onChange([...cf.value, letter])
+                              }
+                            }}
+                            className={cn(
+                              "inline-flex size-12 items-center justify-center rounded-lg border text-sm font-semibold uppercase transition-colors",
+                              active
+                                ? "border-primary bg-primary text-primary-foreground"
+                                : "hover:border-primary/50 hover:bg-primary/5"
+                            )}
+                          >
+                            {letter.toUpperCase()}
+                          </button>
+                        )
+                      }}
+                    />
+                  )
+                })}
+              </div>
+              {qType === "single_correct" && formErrors.correct_option_id ? (
+                <p className="text-destructive text-xs">
+                  {formErrors.correct_option_id.message}
+                </p>
+              ) : null}
+              {qType === "multi_correct" && formErrors.correct_option_ids ? (
+                <p className="text-destructive text-xs">
+                  {formErrors.correct_option_ids.message}
+                </p>
+              ) : null}
+            </div>
+          )}
+
+          {/* Text MCQ: full option editors */}
+          {!isImageMCQ && (qType === "single_correct" || qType === "multi_correct") && (
             <div className="grid gap-3">
               {optionsArray.fields.map((field, idx) => {
                 const letter = OPTION_LETTERS[idx]
@@ -610,7 +827,6 @@ export function QuestionForm({
                             size="icon-sm"
                             onClick={() => {
                               optionsArray.remove(idx)
-                              // Clean up any references to this letter in correct selections.
                               const single = form.getValues("correct_option_id")
                               if (single === letter) setValue("correct_option_id", "")
                               const multi = form.getValues("correct_option_ids")

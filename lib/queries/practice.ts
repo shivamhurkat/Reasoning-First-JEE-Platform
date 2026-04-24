@@ -23,6 +23,7 @@ export type QuestionData = {
   id: string
   topic_id: string
   question_text: string
+  question_image_url: string | null
   question_type: QuestionType
   options: QuestionOption[] | null
   correct_answer: CorrectAnswer
@@ -358,7 +359,7 @@ async function loadQuestion(
   const { data, error } = await supabase
     .from("questions")
     .select(
-      "id, topic_id, question_text, question_type, options, correct_answer, difficulty, estimated_time_seconds, source, year, topics(name, chapters(name, subjects(name)))"
+      "id, topic_id, question_text, question_image_url, question_type, options, correct_answer, difficulty, estimated_time_seconds, source, year, topics(name, chapters(name, subjects(name)))"
     )
     .eq("id", questionId)
     .maybeSingle()
@@ -375,6 +376,7 @@ async function loadQuestion(
     id: data.id,
     topic_id: data.topic_id,
     question_text: data.question_text,
+    question_image_url: (data as unknown as { question_image_url?: string | null }).question_image_url ?? null,
     question_type: data.question_type as QuestionType,
     options: data.options as QuestionOption[] | null,
     correct_answer: data.correct_answer as CorrectAnswer,

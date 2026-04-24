@@ -572,7 +572,19 @@ function QuestionCard({
         ) : null}
       </div>
 
-      <MathPreview value={question.question_text} />
+      {question.question_image_url ? (
+        <div className="overflow-hidden rounded-md border bg-muted/30">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={question.question_image_url}
+            alt="Question"
+            className="w-full object-contain max-h-[400px]"
+          />
+        </div>
+      ) : null}
+      {question.question_text ? (
+        <MathPreview value={question.question_text} />
+      ) : null}
     </div>
   )
 }
