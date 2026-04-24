@@ -50,7 +50,7 @@ export function AdminTopBar({ email }: { email: string }) {
                 href={item.href}
                 prefetch
                 className={cn(
-                  "rounded-md px-2.5 py-1 text-sm font-medium transition-colors",
+                  "rounded-md px-2.5 py-1 text-sm font-medium transition-colors duration-150",
                   active
                     ? "bg-amber-200/70 text-amber-950 shadow-inner dark:bg-amber-900/60 dark:text-amber-50"
                     : "text-amber-900/70 hover:bg-amber-200/40 hover:text-amber-950 dark:text-amber-200/80 dark:hover:bg-amber-900/30"

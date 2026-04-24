@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { DifficultyPicker } from "@/components/admin/difficulty-picker"
+import { ImageUpload } from "@/components/admin/image-upload"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
   Dialog,
@@ -53,6 +54,7 @@ export type Solution = {
   solution_type: SolutionType
   title: string | null
   content: string
+  solution_image_url?: string | null
   steps: { step_number: number; text: string; explanation?: string | null }[] | null
   time_estimate_seconds: number | null
   when_to_use: string | null
@@ -296,25 +298,36 @@ const stepSchema = z.object({
   explanation: z.string().optional(),
 })
 
-const formSchema = z.object({
-  solution_type: z.enum([
-    "standard",
-    "logical",
-    "elimination",
-    "shortcut",
-    "trap_warning",
-    "pattern",
-  ]),
-  title: z.string().trim().max(120).optional(),
-  content: z.string().trim().min(1, "Content required"),
-  steps: z.array(stepSchema),
-  time_estimate_seconds: z.string(),
-  when_to_use: z.string().optional(),
-  when_not_to_use: z.string().optional(),
-  prerequisites: z.string().optional(),
-  difficulty_to_execute: z.number().int().min(1).max(5),
-  status: z.enum(["draft", "published", "ai_generated_unverified", "flagged"]),
-})
+const formSchema = z
+  .object({
+    solution_type: z.enum([
+      "standard",
+      "logical",
+      "elimination",
+      "shortcut",
+      "trap_warning",
+      "pattern",
+    ]),
+    title: z.string().trim().max(120).optional(),
+    content: z.string().trim(), // empty allowed when image provided
+    solution_image_url: z.string(), // "" = no image
+    steps: z.array(stepSchema),
+    time_estimate_seconds: z.string(),
+    when_to_use: z.string().optional(),
+    when_not_to_use: z.string().optional(),
+    prerequisites: z.string().optional(),
+    difficulty_to_execute: z.number().int().min(1).max(5),
+    status: z.enum(["draft", "published", "ai_generated_unverified", "flagged"]),
+  })
+  .superRefine((val, ctx) => {
+    if (!val.solution_image_url && val.content.trim().length < 1) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["content"],
+        message: "Content required, or upload a solution image",
+      })
+    }
+  })
 
 type FormValues = z.infer<typeof formSchema>
 
@@ -336,6 +349,10 @@ function SolutionDialog({
   const initial: Solution | null =
     dialog?.kind === "edit" ? dialog.solution : null
 
+  const [solutionMode, setSolutionMode] = useState<"text" | "image">(
+    initial?.solution_image_url ? "image" : "text"
+  )
+
   const defaults: FormValues = {
     solution_type:
       dialog?.kind === "create"
@@ -345,6 +362,7 @@ function SolutionDialog({
           : "standard",
     title: initial?.title ?? "",
     content: initial?.content ?? "",
+    solution_image_url: initial?.solution_image_url ?? "",
     steps:
       initial?.steps?.map((s) => ({
         text: s.text,
@@ -414,6 +432,7 @@ function SolutionDialog({
       solution_type: values.solution_type,
       title: values.title?.trim() || null,
       content: values.content,
+      solution_image_url: values.solution_image_url || null,
       steps:
         values.steps.length === 0
           ? null
@@ -476,26 +495,98 @@ function SolutionDialog({
             />
           </div>
 
-          <Controller
-            control={form.control}
-            name="content"
-            render={({ field }) => (
-              <div className="grid gap-1">
-                <MathEditor
-                  label="Content"
-                  value={field.value}
-                  onChange={field.onChange}
-                  placeholder="The full reasoning. Use $...$ and $$...$$ for math."
-                  minHeight={140}
-                />
-                {form.formState.errors.content ? (
-                  <p className="text-destructive text-xs">
-                    {form.formState.errors.content.message}
+          {/* Mode toggle */}
+          <div className="grid gap-2">
+            <Label>Solution content</Label>
+            <div className="flex gap-1 rounded-lg border p-1 w-fit">
+              <button
+                type="button"
+                onClick={() => {
+                  setSolutionMode("text")
+                  form.setValue("solution_image_url", "")
+                }}
+                className={cn(
+                  "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+                  solutionMode === "text"
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                Type Solution
+              </button>
+              <button
+                type="button"
+                onClick={() => setSolutionMode("image")}
+                className={cn(
+                  "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+                  solutionMode === "image"
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                Upload Image
+              </button>
+            </div>
+          </div>
+
+          {solutionMode === "image" ? (
+            <Controller
+              control={form.control}
+              name="solution_image_url"
+              render={({ field }) => (
+                <div className="grid gap-1">
+                  <ImageUpload
+                    value={field.value || null}
+                    onChange={(url) => field.onChange(url ?? "")}
+                    folder="solutions"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Upload a scan or diagram. Add supplemental text below if needed.
                   </p>
-                ) : null}
-              </div>
-            )}
-          />
+                  <Controller
+                    control={form.control}
+                    name="content"
+                    render={({ field: tf }) => (
+                      <MathEditor
+                        label="Supplemental text (optional)"
+                        value={tf.value}
+                        onChange={tf.onChange}
+                        placeholder="Additional notes or steps…"
+                        minHeight={80}
+                        compact
+                      />
+                    )}
+                  />
+                  {form.formState.errors.content ? (
+                    <p className="text-destructive text-xs">
+                      {form.formState.errors.content.message}
+                    </p>
+                  ) : null}
+                </div>
+              )}
+            />
+          ) : (
+            <Controller
+              control={form.control}
+              name="content"
+              render={({ field }) => (
+                <div className="grid gap-1">
+                  <MathEditor
+                    label="Content"
+                    value={field.value}
+                    onChange={field.onChange}
+                    placeholder="The full reasoning. Use $...$ and $$...$$ for math."
+                    minHeight={140}
+                  />
+                  {form.formState.errors.content ? (
+                    <p className="text-destructive text-xs">
+                      {form.formState.errors.content.message}
+                    </p>
+                  ) : null}
+                </div>
+              )}
+            />
+          )}
 
           <div className="grid gap-2">
             <div className="flex items-center justify-between">

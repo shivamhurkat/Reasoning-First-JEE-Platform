@@ -349,9 +349,11 @@ function MiniStat({
   value: string
 }) {
   return (
-    <Card>
+    <Card className="transition-shadow duration-150 hover:shadow-md">
       <CardContent className="flex items-start gap-3 p-4">
-        <Icon className="mt-0.5 size-4 text-muted-foreground" />
+        <div className="mt-0.5 inline-flex size-8 items-center justify-center rounded-lg bg-muted">
+          <Icon className="size-4 text-muted-foreground" />
+        </div>
         <div>
           <p className="text-xs uppercase tracking-wide text-muted-foreground">
             {label}

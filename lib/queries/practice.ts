@@ -41,6 +41,7 @@ export type SolutionData = {
   solution_type: SolutionType
   title: string | null
   content: string
+  solution_image_url: string | null
   steps:
     | Array<{ step_number: number; text: string; explanation?: string | null }>
     | null
@@ -485,6 +486,7 @@ export async function getQuestionWithSolutions(questionId: string): Promise<{
     solution_type: string
     title: string | null
     content: string
+    solution_image_url: string | null
     steps: unknown
     time_estimate_seconds: number | null
     when_to_use: string | null
@@ -496,6 +498,7 @@ export async function getQuestionWithSolutions(questionId: string): Promise<{
     solution_type: s.solution_type as SolutionType,
     title: s.title,
     content: s.content,
+    solution_image_url: s.solution_image_url ?? null,
     steps: (s.steps as SolutionData["steps"]) ?? null,
     time_estimate_seconds: s.time_estimate_seconds,
     when_to_use: s.when_to_use,

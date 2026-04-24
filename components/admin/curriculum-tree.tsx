@@ -7,6 +7,7 @@ import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import { slugify } from "@/lib/utils/slug"
 import { Button } from "@/components/ui/button"
+import { LoadingButton } from "@/components/ui/loading-button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -111,9 +112,11 @@ export function CurriculumTree({ subjects }: { subjects: Subject[] }) {
         <Button onClick={() => setDialog({ kind: "new-subject" })}>
           <Plus /> Add Subject
         </Button>
-        <Button
+        <LoadingButton
           variant="outline"
-          disabled={pending || subjects.length > 0}
+          disabled={subjects.length > 0}
+          loading={pending}
+          loadingText="Seeding…"
           onClick={handleSeed}
           title={
             subjects.length > 0
@@ -122,7 +125,7 @@ export function CurriculumTree({ subjects }: { subjects: Subject[] }) {
           }
         >
           <Sprout /> Seed JEE Curriculum
-        </Button>
+        </LoadingButton>
         <span className="ml-auto text-xs text-muted-foreground">
           {subjects.length} subject{subjects.length === 1 ? "" : "s"}
         </span>

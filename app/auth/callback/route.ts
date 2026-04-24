@@ -9,6 +9,8 @@ export async function GET(request: NextRequest) {
   const url = new URL(request.url)
   const code = url.searchParams.get("code")
   const rawNext = url.searchParams.get("next") ?? "/"
+  // Detect email-confirmation callbacks so we can redirect to /login?verified=true
+  const callbackType = url.searchParams.get("type") // "signup" for email confirmation
   // Only allow same-origin redirects to avoid open-redirect abuse.
   const next = rawNext.startsWith("/") && !rawNext.startsWith("//") ? rawNext : "/"
 
@@ -25,6 +27,11 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(
       new URL("/login?error=auth_callback_failed", request.url)
     )
+  }
+
+  // Email signup confirmation → send to login with a verified banner
+  if (callbackType === "signup") {
+    return NextResponse.redirect(new URL("/login?verified=true", request.url))
   }
 
   return NextResponse.redirect(new URL(next, request.url))

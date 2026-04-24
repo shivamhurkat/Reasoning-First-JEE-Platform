@@ -1,12 +1,12 @@
 "use client"
 
 import Link from "next/link"
-import { useRouter } from "next/navigation"
 import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { toast } from "sonner"
+import { CheckCircle2 } from "lucide-react"
 
 import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
@@ -27,12 +27,20 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 
 const signupSchema = z
   .object({
     full_name: z
       .string()
       .trim()
+      .min(1, "Full name is required")
       .max(80, "Name is too long"),
     email: z.string().email("Enter a valid email"),
     password: z
@@ -40,18 +48,23 @@ const signupSchema = z
       .min(8, "Password must be at least 8 characters")
       .regex(/\d/, "Password must contain at least one number"),
     confirm_password: z.string(),
+    phone: z.string().trim().max(20).optional(),
+    target_exam: z.enum(["JEE Mains", "JEE Advanced", "NEET", "Other"]).optional(),
   })
   .refine((data) => data.password === data.confirm_password, {
     message: "Passwords don't match",
     path: ["confirm_password"],
   })
+
 type SignupValues = z.infer<typeof signupSchema>
 
 export default function SignupPage() {
-  const router = useRouter()
   const supabase = createClient()
   const [submitting, setSubmitting] = useState(false)
   const [oauthLoading, setOauthLoading] = useState(false)
+  const [verified, setVerified] = useState(false)
+  const [resending, setResending] = useState(false)
+  const [signupEmail, setSignupEmail] = useState("")
 
   const form = useForm<SignupValues>({
     resolver: zodResolver(signupSchema),
@@ -60,19 +73,21 @@ export default function SignupPage() {
       email: "",
       password: "",
       confirm_password: "",
+      phone: "",
+      target_exam: undefined,
     },
   })
 
   const onSubmit = async (values: SignupValues) => {
     setSubmitting(true)
-    const trimmedName = values.full_name.trim() || undefined
+    const trimmedName = values.full_name.trim()
 
     const { data, error } = await supabase.auth.signUp({
       email: values.email,
       password: values.password,
       options: {
-        data: trimmedName ? { full_name: trimmedName } : undefined,
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
+        data: { full_name: trimmedName },
+        emailRedirectTo: `${window.location.origin}/auth/callback?type=signup`,
       },
     })
 
@@ -82,21 +97,42 @@ export default function SignupPage() {
       return
     }
 
-    // user_profiles is auto-created by the DB trigger on auth.users insert.
-    // Update full_name if the user provided one.
-    if (data.user && trimmedName) {
+    // Update user_profiles with all provided fields
+    if (data.user) {
       const { error: profileError } = await supabase
         .from("user_profiles")
-        .update({ full_name: trimmedName })
+        .update({
+          full_name: trimmedName,
+          phone: values.phone?.trim() || null,
+          target_exam: values.target_exam ?? "JEE Mains",
+        })
         .eq("id", data.user.id)
       if (profileError) {
-        console.warn("Failed to set full_name:", profileError.message)
+        console.warn("Failed to update profile:", profileError.message)
       }
     }
 
     setSubmitting(false)
-    toast.success("Check your email to verify your account.")
-    router.push("/login")
+    setSignupEmail(values.email)
+    setVerified(true)
+  }
+
+  const handleResend = async () => {
+    if (!signupEmail) return
+    setResending(true)
+    const { error } = await supabase.auth.resend({
+      type: "signup",
+      email: signupEmail,
+      options: {
+        emailRedirectTo: `${window.location.origin}/auth/callback?type=signup`,
+      },
+    })
+    setResending(false)
+    if (error) {
+      toast.error(error.message)
+    } else {
+      toast.success("Verification email resent.")
+    }
   }
 
   const signInWithGoogle = async () => {
@@ -111,6 +147,42 @@ export default function SignupPage() {
       setOauthLoading(false)
       toast.error(error.message)
     }
+  }
+
+  if (verified) {
+    return (
+      <Card>
+        <CardContent className="grid gap-5 pt-6">
+          <div className="flex flex-col items-center gap-3 text-center">
+            <div className="inline-flex size-12 items-center justify-center rounded-full bg-emerald-500/15">
+              <CheckCircle2 className="size-6 text-emerald-600" />
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold">Check your inbox</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                We sent a verification link to{" "}
+                <strong className="text-foreground">{signupEmail}</strong>.
+                Click it to activate your account.
+              </p>
+            </div>
+          </div>
+          <Button
+            variant="outline"
+            className="w-full"
+            disabled={resending}
+            onClick={handleResend}
+          >
+            {resending ? "Sending…" : "Resend verification email"}
+          </Button>
+          <p className="text-center text-sm text-muted-foreground">
+            Already verified?{" "}
+            <Link href="/login" className="text-foreground hover:underline">
+              Sign in
+            </Link>
+          </p>
+        </CardContent>
+      </Card>
+    )
   }
 
   return (
@@ -133,7 +205,7 @@ export default function SignupPage() {
               name="full_name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Full name (optional)</FormLabel>
+                  <FormLabel>Full name</FormLabel>
                   <FormControl>
                     <Input
                       type="text"
@@ -202,8 +274,66 @@ export default function SignupPage() {
               )}
             />
 
+            <FormField
+              control={form.control}
+              name="phone"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>
+                    Phone{" "}
+                    <span className="text-xs text-muted-foreground font-normal">
+                      (optional)
+                    </span>
+                  </FormLabel>
+                  <FormControl>
+                    <Input
+                      type="tel"
+                      autoComplete="tel"
+                      placeholder="+91 98765 43210"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="target_exam"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>
+                    Preparing for{" "}
+                    <span className="text-xs text-muted-foreground font-normal">
+                      (optional)
+                    </span>
+                  </FormLabel>
+                  <Select
+                    value={field.value ?? ""}
+                    onValueChange={(v) =>
+                      field.onChange(v === "" ? undefined : v)
+                    }
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select exam" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="JEE Mains">JEE Mains</SelectItem>
+                      <SelectItem value="JEE Advanced">JEE Advanced</SelectItem>
+                      <SelectItem value="NEET">NEET</SelectItem>
+                      <SelectItem value="Other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
             <Button type="submit" disabled={submitting} className="w-full">
-              {submitting ? "Creating account..." : "Create account"}
+              {submitting ? "Creating account…" : "Create account"}
             </Button>
           </form>
         </Form>
@@ -224,7 +354,7 @@ export default function SignupPage() {
           disabled={oauthLoading}
           onClick={signInWithGoogle}
         >
-          {oauthLoading ? "Redirecting..." : "Continue with Google"}
+          {oauthLoading ? "Redirecting…" : "Continue with Google"}
         </Button>
 
         <p className="text-center text-sm text-muted-foreground">

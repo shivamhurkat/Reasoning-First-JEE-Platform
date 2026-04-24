@@ -1,12 +1,13 @@
 "use client"
 
 import Link from "next/link"
-import { useRouter } from "next/navigation"
-import { useState } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
+import { Suspense, useState } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { toast } from "sonner"
+import { CheckCircle2 } from "lucide-react"
 
 import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
@@ -34,7 +35,18 @@ const loginSchema = z.object({
 })
 type LoginValues = z.infer<typeof loginSchema>
 
-export default function LoginPage() {
+function VerifiedBanner() {
+  const searchParams = useSearchParams()
+  if (searchParams.get("verified") !== "true") return null
+  return (
+    <div className="flex items-center gap-3 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-700 dark:text-emerald-300">
+      <CheckCircle2 className="size-4 shrink-0" />
+      Email verified! You can now sign in.
+    </div>
+  )
+}
+
+function LoginForm() {
   const router = useRouter()
   const supabase = createClient()
   const [submitting, setSubmitting] = useState(false)
@@ -79,96 +91,106 @@ export default function LoginPage() {
   }
 
   return (
+    <>
+      <Suspense>
+        <VerifiedBanner />
+      </Suspense>
+
+      <Form {...form}>
+        <form
+          onSubmit={form.handleSubmit(onSubmit)}
+          className="grid gap-4"
+          noValidate
+        >
+          <FormField
+            control={form.control}
+            name="email"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Email</FormLabel>
+                <FormControl>
+                  <Input
+                    type="email"
+                    autoComplete="email"
+                    placeholder="you@example.com"
+                    {...field}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="password"
+            render={({ field }) => (
+              <FormItem>
+                <div className="flex items-center justify-between">
+                  <FormLabel>Password</FormLabel>
+                  <Link
+                    href="/forgot-password"
+                    className="text-xs text-muted-foreground hover:underline"
+                  >
+                    Forgot password?
+                  </Link>
+                </div>
+                <FormControl>
+                  <Input
+                    type="password"
+                    autoComplete="current-password"
+                    {...field}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <Button type="submit" disabled={submitting} className="w-full">
+            {submitting ? "Signing in…" : "Sign in"}
+          </Button>
+        </form>
+      </Form>
+
+      <div className="relative my-2">
+        <Separator />
+        <span className="absolute inset-0 -top-2.5 flex justify-center">
+          <span className="bg-card px-2 text-xs text-muted-foreground">
+            Or continue with
+          </span>
+        </span>
+      </div>
+
+      <Button
+        type="button"
+        variant="outline"
+        className="w-full"
+        disabled={oauthLoading}
+        onClick={signInWithGoogle}
+      >
+        {oauthLoading ? "Redirecting…" : "Continue with Google"}
+      </Button>
+
+      <p className="text-center text-sm text-muted-foreground">
+        Don&apos;t have an account?{" "}
+        <Link href="/signup" className="text-foreground hover:underline">
+          Sign up
+        </Link>
+      </p>
+    </>
+  )
+}
+
+export default function LoginPage() {
+  return (
     <Card>
       <CardHeader className="space-y-1">
         <CardTitle className="text-2xl">Welcome back</CardTitle>
-        <CardDescription>
-          Sign in to continue your JEE prep.
-        </CardDescription>
+        <CardDescription>Sign in to continue your JEE prep.</CardDescription>
       </CardHeader>
       <CardContent className="grid gap-4">
-        <Form {...form}>
-          <form
-            onSubmit={form.handleSubmit(onSubmit)}
-            className="grid gap-4"
-            noValidate
-          >
-            <FormField
-              control={form.control}
-              name="email"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Email</FormLabel>
-                  <FormControl>
-                    <Input
-                      type="email"
-                      autoComplete="email"
-                      placeholder="you@example.com"
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="password"
-              render={({ field }) => (
-                <FormItem>
-                  <div className="flex items-center justify-between">
-                    <FormLabel>Password</FormLabel>
-                    <Link
-                      href="/forgot-password"
-                      className="text-xs text-muted-foreground hover:underline"
-                    >
-                      Forgot password?
-                    </Link>
-                  </div>
-                  <FormControl>
-                    <Input
-                      type="password"
-                      autoComplete="current-password"
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <Button type="submit" disabled={submitting} className="w-full">
-              {submitting ? "Signing in..." : "Sign in"}
-            </Button>
-          </form>
-        </Form>
-
-        <div className="relative my-2">
-          <Separator />
-          <span className="absolute inset-0 -top-2.5 flex justify-center">
-            <span className="bg-card px-2 text-xs text-muted-foreground">
-              Or continue with
-            </span>
-          </span>
-        </div>
-
-        <Button
-          type="button"
-          variant="outline"
-          className="w-full"
-          disabled={oauthLoading}
-          onClick={signInWithGoogle}
-        >
-          {oauthLoading ? "Redirecting..." : "Continue with Google"}
-        </Button>
-
-        <p className="text-center text-sm text-muted-foreground">
-          Don&apos;t have an account?{" "}
-          <Link href="/signup" className="text-foreground hover:underline">
-            Sign up
-          </Link>
-        </p>
+        <LoginForm />
       </CardContent>
     </Card>
   )

@@ -49,7 +49,8 @@ const payloadSchema = z.object({
   question_id: z.string().uuid(),
   solution_type: z.enum(SOLUTION_TYPES),
   title: z.string().trim().max(120).optional().nullable(),
-  content: z.string().trim().min(1, "Content required"),
+  content: z.string().trim(), // empty allowed when solution_image_url provided
+  solution_image_url: z.string().optional().nullable(),
   steps: z.array(stepSchema).optional().nullable(),
   time_estimate_seconds: z.number().int().min(0).optional().nullable(),
   when_to_use: z.string().optional().nullable(),
@@ -68,11 +69,15 @@ export async function createSolution(
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input" }
   }
+  if (!parsed.data.solution_image_url && parsed.data.content.trim().length < 1) {
+    return { ok: false, error: "Content required, or upload a solution image" }
+  }
   const client = await adminClient()
   if (!client.ok) return { ok: false, error: client.error }
   const { error } = await client.supabase.from("solutions").insert({
     ...parsed.data,
     title: parsed.data.title ?? null,
+    solution_image_url: parsed.data.solution_image_url ?? null,
     steps: parsed.data.steps ?? null,
     time_estimate_seconds: parsed.data.time_estimate_seconds ?? null,
     when_to_use: parsed.data.when_to_use ?? null,
@@ -94,6 +99,9 @@ export async function updateSolution(
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input" }
   }
+  if (!parsed.data.solution_image_url && parsed.data.content.trim().length < 1) {
+    return { ok: false, error: "Content required, or upload a solution image" }
+  }
   const client = await adminClient()
   if (!client.ok) return { ok: false, error: client.error }
   const { error } = await client.supabase
@@ -102,6 +110,7 @@ export async function updateSolution(
       solution_type: parsed.data.solution_type,
       title: parsed.data.title ?? null,
       content: parsed.data.content,
+      solution_image_url: parsed.data.solution_image_url ?? null,
       steps: parsed.data.steps ?? null,
       time_estimate_seconds: parsed.data.time_estimate_seconds ?? null,
       when_to_use: parsed.data.when_to_use ?? null,

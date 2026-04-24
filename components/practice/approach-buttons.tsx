@@ -27,9 +27,11 @@ export function ApproachButtons({
             disabled={disabled}
             onClick={() => onSelect(a.id)}
             className={cn(
-              "group flex min-h-28 flex-col items-start gap-2 rounded-xl border bg-card p-4 text-left transition-all outline-none",
-              "hover:border-primary/50 hover:bg-muted/40 hover:shadow-md",
+              "group flex min-h-28 flex-col items-start gap-2 rounded-xl border bg-card p-4 text-left",
+              "transition-all duration-150 outline-none",
+              "hover:border-primary/50 hover:bg-muted/40 hover:shadow-md hover:scale-[1.02]",
               "focus-visible:border-primary focus-visible:ring-3 focus-visible:ring-ring/40",
+              "active:scale-[0.98]",
               a.id === "skip" && "hover:border-muted-foreground/40",
               "disabled:pointer-events-none disabled:opacity-50"
             )}

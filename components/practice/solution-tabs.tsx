@@ -109,7 +109,17 @@ function SolutionBody({ solution }: { solution: SolutionData }) {
         ) : null}
       </div>
 
-      <MathPreview value={solution.content} />
+      {solution.solution_image_url ? (
+        <div className="overflow-hidden rounded-md border bg-muted/30">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={solution.solution_image_url}
+            alt="Solution"
+            className="w-full object-contain max-h-[500px]"
+          />
+        </div>
+      ) : null}
+      {solution.content ? <MathPreview value={solution.content} /> : null}
 
       {solution.steps && solution.steps.length > 0 ? (
         <ol className="grid gap-2">

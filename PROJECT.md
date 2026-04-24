@@ -615,6 +615,69 @@ practice pages. All respect RLS:
   the sidebar with `fixed inset-0`. Functionally fine, but it means the
   sidebar briefly renders underneath on first paint. Fine for now.
 
+## Image upload (questions + solutions)
+
+Both question and solution content support an optional image alongside or
+instead of text. Storage bucket: **`content-images`** (public read, admin upload).
+
+### Question images
+- Toggle in `question-form.tsx`: **Type Question** | **Upload Image**
+- Image mode for MCQ: options are in the image; admin clicks A/B/C/D to mark
+  correct. Options stored with empty text; student sees letter-only buttons.
+- `question_image_url` persists on the `questions` row.
+- Student view (`QuestionCard`): image renders full-width above text if both exist.
+
+### Solution images
+- Same "Type Solution | Upload Image" toggle in `solutions-manager.tsx` dialog.
+- `solution_image_url` persists on the `solutions` row.
+- Student view (`SolutionBody`): image renders first, then any text content below.
+
+### Utilities
+- `lib/supabase/storage.ts` — `uploadContentImage(file, folder)` and
+  `deleteContentImage(url)` (browser-client only, never server).
+- `components/admin/image-upload.tsx` — drop zone + click-to-upload. Validates
+  PNG/JPG/WebP and 5 MB limit.
+
+## Loading button pattern
+
+`components/ui/loading-button.tsx` wraps the shadcn `Button` and accepts:
+- `loading: boolean` — shows `<Loader2 animate-spin />` and disables the button
+- `loadingText?: string` — text shown while loading (falls back to children)
+
+Use this for any button that triggers an async server action, especially where
+`useTransition` gives you a `pending` boolean. Currently used in:
+- `session-client.tsx` — Submit Answer, Next Question, End Session
+- `curriculum-tree.tsx` — Seed JEE Curriculum
+
+## Signup flow
+
+- **full_name** is required on signup (NOT NULL in DB).
+- Optional fields added: **phone** and **target_exam** (JEE Mains / JEE Advanced / NEET / Other).
+- Both are written to `user_profiles` immediately after `auth.signUp` succeeds.
+- After signup, user sees an inline verification panel (not just a toast) with a
+  "Resend verification email" button. No redirect to /login until they choose.
+- Auth callback (`/app/auth/callback/route.ts`): if `type=signup` query param is
+  present (set by our `emailRedirectTo` URL), redirects to `/login?verified=true`.
+- Login page shows a green "Email verified!" banner when `?verified=true` is in the URL.
+
+## Mobile responsive approach
+
+Sidebar breakpoint is `lg` (1024px). Below `lg`:
+- Desktop sidebar hidden via `lg:flex` / `lg:hidden`.
+- A fixed `MobileHeader` (hamburger + app name + user avatar initial) appears at the top.
+- Clicking the hamburger opens a shadcn `Sheet` from the left with the full sidebar.
+- Clicking any nav link closes the Sheet automatically (`onNavigate` callback).
+- Session page uses `fixed inset-0 z-40` overlay — the AppShell is visually
+  covered so neither the sidebar nor the mobile header appear during a session.
+
+### Component structure
+```
+components/app-shell.tsx         Main shell (desktop sidebar + Sheet + MobileHeader)
+components/dashboard/
+  sidebar-nav.tsx                Reusable nav link list (active-link highlighting)
+  mobile-header.tsx              Top bar shown on mobile (hamburger + avatar)
+```
+
 ## Commands
 
 ```bash

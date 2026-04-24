@@ -15,6 +15,7 @@ import {
 import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { LoadingButton } from "@/components/ui/loading-button"
 import {
   Dialog,
   DialogContent,
@@ -405,12 +406,14 @@ export function SessionClient({
                   onChange={setAnswer}
                 />
                 <div className="flex items-center gap-3">
-                  <Button
+                  <LoadingButton
                     onClick={handleSubmit}
-                    disabled={!hasAnswer(answer) || pendingSubmit}
+                    disabled={!hasAnswer(answer)}
+                    loading={pendingSubmit}
+                    loadingText="Submitting…"
                   >
-                    {pendingSubmit ? "Submitting..." : "Submit answer"}
-                  </Button>
+                    Submit answer
+                  </LoadingButton>
                   <button
                     type="button"
                     onClick={handleChangeApproach}
@@ -462,15 +465,16 @@ export function SessionClient({
             >
               Keep practising
             </Button>
-            <Button
+            <LoadingButton
               onClick={() => {
                 setExitOpen(false)
                 handleEnd(false)
               }}
-              disabled={pendingEnd}
+              loading={pendingEnd}
+              loadingText="Ending…"
             >
-              {pendingEnd ? "Ending..." : "End session"}
-            </Button>
+              End session
+            </LoadingButton>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -621,7 +625,9 @@ function ResultPanel({
   const headline = skipped
     ? {
         icon: (
-          <Circle className="size-8 text-sky-500" />
+          <div className="inline-flex size-12 items-center justify-center rounded-full bg-sky-500/15 ring-4 ring-sky-500/10">
+            <Circle className="size-6 text-sky-500" />
+          </div>
         ),
         text: "No problem — here's how to approach this",
         tone: "text-sky-600 dark:text-sky-300",
@@ -629,20 +635,32 @@ function ResultPanel({
       }
     : isCorrect === true
       ? {
-          icon: <CheckCircle2 className="size-8 text-emerald-600" />,
+          icon: (
+            <div className="inline-flex size-12 items-center justify-center rounded-full bg-emerald-500/15 ring-4 ring-emerald-500/10">
+              <CheckCircle2 className="size-6 text-emerald-600" />
+            </div>
+          ),
           text: "Correct!",
           tone: "text-emerald-700 dark:text-emerald-400",
           bg: "bg-emerald-500/5 border-emerald-500/20",
         }
       : isCorrect === false
         ? {
-            icon: <XCircle className="size-8 text-red-600" />,
+            icon: (
+              <div className="inline-flex size-12 items-center justify-center rounded-full bg-red-500/15 ring-4 ring-red-500/10">
+                <XCircle className="size-6 text-red-600" />
+              </div>
+            ),
             text: "Not quite",
             tone: "text-red-700 dark:text-red-400",
             bg: "bg-red-500/5 border-red-500/20",
           }
         : {
-            icon: <Check className="size-8 text-primary" />,
+            icon: (
+              <div className="inline-flex size-12 items-center justify-center rounded-full bg-primary/10 ring-4 ring-primary/10">
+                <Check className="size-6 text-primary" />
+              </div>
+            ),
             text: "Answer submitted",
             tone: "text-primary",
             bg: "bg-primary/5 border-primary/20",
@@ -691,16 +709,17 @@ function ResultPanel({
       </section>
 
       <div className="sticky bottom-0 -mx-4 flex items-center gap-3 border-t bg-background/80 px-4 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/70 md:-mx-6 md:px-6">
-        <Button onClick={onNext} disabled={pendingNext}>
-          {pendingNext ? "Loading..." : "Next question"}
-        </Button>
-        <Button
+        <LoadingButton onClick={onNext} loading={pendingNext} loadingText="Loading…">
+          Next question
+        </LoadingButton>
+        <LoadingButton
           variant="outline"
           onClick={onEnd}
-          disabled={pendingEnd}
+          loading={pendingEnd}
+          loadingText="Ending…"
         >
-          {pendingEnd ? "Ending..." : "End session"}
-        </Button>
+          End session
+        </LoadingButton>
         <span className="ml-auto hidden text-xs text-muted-foreground md:inline">
           Press Enter for the next question
         </span>
@@ -852,9 +871,9 @@ function ExhaustedPanel({
         home to pick another topic.
       </p>
       <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
-        <Button onClick={onEnd} disabled={pendingEnd}>
-          {pendingEnd ? "Ending..." : "End session"}
-        </Button>
+        <LoadingButton onClick={onEnd} loading={pendingEnd} loadingText="Ending…">
+          End session
+        </LoadingButton>
         <Button render={<Link href="/practice" />} variant="outline">
           Switch topic
         </Button>

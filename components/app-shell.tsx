@@ -1,19 +1,16 @@
 "use client"
 
 import Link from "next/link"
-import { usePathname } from "next/navigation"
 import { useState } from "react"
 import {
   BookOpen,
   Home,
   LogOut,
-  Menu,
   Settings,
   ShieldCheck,
   TrendingUp,
 } from "lucide-react"
 
-import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import {
@@ -22,11 +19,14 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet"
+import { SidebarNav, type NavItem } from "@/components/dashboard/sidebar-nav"
+import { MobileHeader } from "@/components/dashboard/mobile-header"
 
-type NavItem = {
-  href: string
-  label: string
-  icon: React.ComponentType<{ className?: string }>
+export type AppShellProfile = {
+  id: string
+  email: string
+  full_name: string | null
+  role: string
 }
 
 const BASE_NAV: NavItem[] = [
@@ -36,13 +36,6 @@ const BASE_NAV: NavItem[] = [
   { href: "/settings", label: "Settings", icon: Settings },
 ]
 
-export type AppShellProfile = {
-  id: string
-  email: string
-  full_name: string | null
-  role: string
-}
-
 export function AppShell({
   profile,
   children,
@@ -51,11 +44,11 @@ export function AppShell({
   children: React.ReactNode
 }) {
   const [mobileOpen, setMobileOpen] = useState(false)
-  const nav =
+  const nav: NavItem[] =
     profile.role === "admin"
       ? [
           ...BASE_NAV,
-          { href: "/admin", label: "Admin", icon: ShieldCheck } as NavItem,
+          { href: "/admin", label: "Admin", icon: ShieldCheck },
         ]
       : BASE_NAV
 
@@ -69,26 +62,17 @@ export function AppShell({
 
   return (
     <div className="flex min-h-screen bg-background">
-      {/* Desktop sidebar */}
-      <aside className="hidden w-60 shrink-0 border-r bg-card md:flex md:flex-col">
+      {/* Desktop sidebar — hidden below lg */}
+      <aside className="hidden w-60 shrink-0 border-r bg-card lg:flex lg:flex-col">
         {sidebarContent}
       </aside>
 
-      {/* Mobile: hamburger + Sheet */}
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-14 items-center gap-3 border-b bg-card px-4 md:hidden">
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            aria-label="Open menu"
-            onClick={() => setMobileOpen(true)}
-          >
-            <Menu />
-          </Button>
-          <span className="font-semibold tracking-tight">
-            Reasoning-First JEE
-          </span>
-        </header>
+        {/* Mobile top bar — hidden at lg+ */}
+        <MobileHeader
+          profile={profile}
+          onMenuClick={() => setMobileOpen(true)}
+        />
 
         <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
           <SheetContent side="left" className="w-72 p-0">
@@ -114,7 +98,6 @@ function SidebarBody({
   profile: AppShellProfile
   onNavigate?: () => void
 }) {
-  const pathname = usePathname()
   const displayName = profile.full_name?.trim() || profile.email
 
   return (
@@ -123,7 +106,7 @@ function SidebarBody({
         <Link
           href="/"
           onClick={onNavigate}
-          className="text-base font-semibold tracking-tight"
+          className="text-base font-semibold tracking-tight transition-colors duration-150 hover:text-primary"
         >
           Reasoning-First JEE
         </Link>
@@ -131,32 +114,7 @@ function SidebarBody({
       <Separator />
 
       <nav className="flex-1 overflow-y-auto p-3">
-        <ul className="grid gap-1">
-          {nav.map((item) => {
-            const active =
-              item.href === "/"
-                ? pathname === "/"
-                : pathname === item.href || pathname.startsWith(`${item.href}/`)
-            const Icon = item.icon
-            return (
-              <li key={item.href}>
-                <Link
-                  href={item.href}
-                  onClick={onNavigate}
-                  className={cn(
-                    "flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors",
-                    active
-                      ? "bg-muted text-foreground"
-                      : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
-                  )}
-                >
-                  <Icon className="size-4" />
-                  {item.label}
-                </Link>
-              </li>
-            )
-          })}
-        </ul>
+        <SidebarNav items={nav} onNavigate={onNavigate} />
       </nav>
 
       <Separator />
