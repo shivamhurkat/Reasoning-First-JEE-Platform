@@ -416,9 +416,9 @@ export function QuestionForm({
                   disabled={!subjectId}
                 >
                   <SelectTrigger>
-                    <SelectValue
-                      placeholder={subjectId ? "Select chapter" : "Pick subject first"}
-                    />
+                    <SelectValue>
+  {chapters.find((c) => c.id === field.value)?.name || "Pick subject first"}
+</SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     {filteredChapters.map((c) => (
@@ -449,9 +449,9 @@ export function QuestionForm({
                   disabled={!chapterId}
                 >
                   <SelectTrigger>
-                    <SelectValue
-                      placeholder={chapterId ? "Select topic" : "Pick chapter first"}
-                    />
+                    <SelectValue>
+  {topics.find((t) => t.id === field.value)?.name || "Pick chapter first"}
+</SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     {filteredTopics.map((t) => (
