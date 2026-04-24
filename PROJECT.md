@@ -88,7 +88,12 @@
 | `/auth/callback` | Public endpoint (Supabase redirect target) | `app/auth/callback/route.ts` |
 | `/auth/signout` | POST only; no-op if no session | `app/auth/signout/route.ts` |
 | `/` | **Protected** (dashboard home) | `app/(dashboard)/page.tsx` |
-| `/practice`, `/progress`, `/settings` | **Protected** | `app/(dashboard)/<name>/page.tsx` |
+| `/practice` | **Protected** (practice landing) | `app/(dashboard)/practice/page.tsx` |
+| `/practice/[subject]` | **Protected** (chapter list) | `app/(dashboard)/practice/[subject]/page.tsx` |
+| `/practice/[subject]/[chapter]` | **Protected** (topic list) | `app/(dashboard)/practice/[subject]/[chapter]/page.tsx` |
+| `/practice/session/[sessionId]` | **Protected** (live session) | `app/(dashboard)/practice/session/[sessionId]/page.tsx` |
+| `/practice/session/[sessionId]/summary` | **Protected** (session summary) | `…/summary/page.tsx` |
+| `/progress`, `/settings` | **Protected** | `app/(dashboard)/<name>/page.tsx` |
 | `/admin/subjects` | **Admin-only** | `app/(admin)/admin/subjects/page.tsx` |
 | `/admin/questions` | **Admin-only** | `app/(admin)/admin/questions/page.tsx` |
 | `/admin/questions/new` | **Admin-only** | `app/(admin)/admin/questions/new/page.tsx` |
@@ -457,6 +462,158 @@ Preconditions:
 - Curriculum already seeded (`/admin/subjects → Seed JEE Curriculum`).
   The script resolves topic IDs from the canonical slug tree in
   `lib/constants/jee-curriculum.ts`.
+
+## Practice Flow (student-facing core)
+
+The whole product exists to force students to **commit to a reasoning
+approach before they see the answer area**. Every other JEE app lets you
+peek at a solution the moment you're stuck; ours doesn't. That asymmetry is
+the moat, and the flow is designed around it.
+
+### Route map
+
+```
+/practice                             Landing: 3 subject cards + Quick Practice row
+/practice/[subject]                   Chapter list for a subject
+/practice/[subject]/[chapter]         Topic list (+ "Practice entire chapter" CTA)
+/practice/session/[sessionId]         Live session (full-screen, no sidebar)
+/practice/session/[sessionId]/summary Post-session breakdown
+```
+
+Session URLs live under `(dashboard)` for the auth guard, but their own
+`layout.tsx` uses `fixed inset-0 z-40` so the sidebar is visually out of
+the way.
+
+### Session state machine (client-side)
+
+```
+   ┌─────────────────────┐
+   │ approach_selection  │  ← question visible, answer area hidden
+   └──────────┬──────────┘
+              │ user picks 1 of 5 approaches (1–5 hotkeys)
+              ├──────────────────────────────┐
+              ▼                              ▼
+     ┌─────────────────┐              ┌──────────────┐
+     │    solving      │              │ submitted    │ ← reached directly on Skip
+     └────────┬────────┘              └──────┬───────┘
+              │ Submit (Enter)               │
+              ▼                              │
+     ┌─────────────────┐                     │
+     │    submitted    │◄────────────────────┘
+     └────────┬────────┘
+              │ Next question  │  End session
+              ▼                 ▼
+      (loads next, resets) (→ /summary page)
+```
+
+All transitions are client React state. The database is the source of
+truth for session existence + attempts; UI state is ephemeral.
+
+### The approach mechanic (why)
+
+Most students learn to execute one way and then plateau. We want them to
+become fluent in **multiple solution classes** for the same problem. By
+forcing a named commitment before the answer reveal, we:
+
+1. Record *how* they approach each question, not just whether they were
+   right — this drives future coaching.
+2. Make the "Your approach" tab on the result screen a teachable moment:
+   they see their approach side-by-side with four others that could have
+   worked better or faster.
+3. Penalise no behaviour. Picking "Skip" is fully respected — the result
+   screen opens with "No problem — here's how to approach this" and the
+   student still sees all solution tabs.
+
+The five approaches map to DB `practice_attempts.chosen_approach` and to
+the solution-type taxonomy via `APPROACH_TO_SOLUTION` (see
+`lib/constants/practice.ts`):
+
+| Approach | Highlighted solution tab |
+| --- | --- |
+| Full Solve | Standard |
+| Elimination | Elimination |
+| Pattern Recognition | Pattern |
+| Shortcut / Trick | Shortcut |
+| Skip | Standard (default fallback) |
+
+### Correctness
+
+Computed client-side for immediate feedback in `checkCorrectness`:
+
+- **single_correct**: `submitted.value === correct.value`
+- **multi_correct**: sorted-array equality
+- **numerical**: `|submitted - correct| <= tolerance` (default 0.01)
+- **subjective**: `null` (always shown the reference answer)
+
+The server action `submitAttempt` stores the same verdict in
+`practice_attempts.is_correct`. Skip is recorded as `is_correct = false`
+with `chosen_approach = 'skip'`.
+
+### XP formula
+
+Implemented in `computeXp()` inside `practice/actions.ts`:
+
+```
+per attempt:
+  +2 XP  (always — reward effort)
+  +10 XP if correct
+  +5 XP if correct AND approach ≠ 'full_solve'   (reward smart methods)
+  never negative
+```
+
+Session XP is totaled on `endSession` and added to `user_profiles.xp_total`.
+The per-session value is also stored on `practice_sessions.xp_earned` so
+the summary page can render it even after profile aggregation.
+
+### Streak logic
+
+Also in `endSession`:
+
+```
+today  = YYYY-MM-DD (UTC)
+yday   = YYYY-MM-DD (today − 1d)
+
+if profile.last_active_date == today:
+  # Already counted today — no-op on streak.
+elif profile.last_active_date == yday:
+  current_streak = current_streak + 1
+else:
+  current_streak = 1   # broke / starting over
+
+longest_streak = max(longest_streak, current_streak)
+last_active_date = today
+```
+
+Only runs when `endSession` actually ends a session (the action is
+idempotent — re-visits to the summary page don't double-count).
+
+### Query helpers
+
+`lib/queries/practice.ts` exposes server-side helpers consumed by the
+practice pages. All respect RLS:
+
+| Function | Used by |
+| --- | --- |
+| `getSubjectsWithCounts(userId)` | Practice landing |
+| `getChaptersForSubject(slug, userId)` | Subject page |
+| `getTopicsForChapter(subjectSlug, chapterSlug, userId)` | Chapter page |
+| `getNextQuestionForTopic(topicId, userId)` | Future use (spaced-rep-style picks outside a session) |
+| `pickQuestionForSession(sessionId, scope, userId)` | Session page + `getNextQuestion` action |
+| `getQuestionWithSolutions(questionId)` | Session page (server-side hydration) |
+
+### Known limitations (deferred)
+
+- **Spaced repetition is not integrated.** Wrong answers don't auto-queue
+  into `review_queue` yet — that's the next step (SM-2 driver + review
+  picker).
+- **Daily challenges** aren't wired — the `daily_challenges` and
+  `user_daily_challenges` tables exist but are unused.
+- **AI coach** (`coach_conversations`) is schema-only; no live coaching.
+- **Subjective grading** is marker-only in v1. The student sees the
+  reference answer but gets `is_correct = null` on the attempt row.
+- The session page lives inside the (dashboard) route group and overlays
+  the sidebar with `fixed inset-0`. Functionally fine, but it means the
+  sidebar briefly renders underneath on first paint. Fine for now.
 
 ## Commands
 
