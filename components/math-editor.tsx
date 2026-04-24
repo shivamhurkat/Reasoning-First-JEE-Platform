@@ -9,139 +9,131 @@ import { Textarea } from "@/components/ui/textarea"
 import { MathPreview } from "@/components/math-preview"
 
 /**
- * A snippet describes one toolbar button. Two patterns:
+ * Slot convention: the two-character token "{ }" (brace-space-brace) marks an
+ * empty placeholder. The inline equivalent is "$ $". insertMathSnippet() lands
+ * the caret on the first slot and selects its single space, so the user can
+ * immediately type over it. Tab / Shift-Tab navigates between slots.
  *
- * 1. `wrap` — when the user has text selected, wrap it with `before` + selection + `after`.
- *    If nothing is selected, insert `before` + `placeholder` + `after` and leave the
- *    placeholder selected so the user can type over it.
- *
- * 2. `template` — insert a fixed multi-line template. `cursor` says where the caret should
- *    land (character offset from start of inserted text).
+ * Why this token? "{ }" is valid LaTeX (renders as empty) so the preview keeps
+ * working mid-edit, and the regex for it is unambiguous in normal JEE math.
  */
+const SLOT_RE = /\{ \}|\$ \$/g
+
+/** Finds the next empty slot starting at or after `from`. Returns the range of
+ *  the single inner space so setSelectionRange() highlights it. */
+function findNextSlot(
+  text: string,
+  from: number
+): { start: number; end: number } | null {
+  SLOT_RE.lastIndex = from
+  const m = SLOT_RE.exec(text)
+  if (!m) return null
+  return { start: m.index + 1, end: m.index + 2 }
+}
+
+/** Finds the last slot strictly before `from`. Used by Shift+Tab. */
+function findPrevSlot(
+  text: string,
+  from: number
+): { start: number; end: number } | null {
+  SLOT_RE.lastIndex = 0
+  let last: { start: number; end: number } | null = null
+  let m: RegExpExecArray | null
+  while ((m = SLOT_RE.exec(text)) !== null) {
+    const slot = { start: m.index + 1, end: m.index + 2 }
+    if (slot.end > from) break
+    last = slot
+  }
+  return last
+}
+
 type Snippet = {
   id: string
-  label: string
+  label: React.ReactNode
   hint: string
-} & (
-  | {
-      kind: "wrap"
-      before: string
-      after: string
-      placeholder: string
-    }
-  | {
-      kind: "template"
-      text: string
-      cursor: number
-      selectLen?: number
-    }
-)
+  /** LaTeX string. Use "{ }" for slots and "$ $" for an empty inline wrapper. */
+  latex: string
+  /** `inline` wraps selection in $...$; `slot` puts selection into the first {} slot. */
+  wrap?: "inline" | "slot"
+}
 
 const SNIPPETS: Snippet[] = [
   {
     id: "inline",
-    kind: "wrap",
-    label: "Inline $…$",
-    hint: "Inline math. Wraps your selection in $...$",
-    before: "$",
-    after: "$",
-    placeholder: "x",
+    label: "Inline",
+    hint: "Inline math. Wraps your selection, or inserts $ $ (⌘M)",
+    latex: "$ $",
+    wrap: "inline",
   },
   {
     id: "block",
-    kind: "template",
-    label: "Block $$…$$",
+    label: "Block",
     hint: "Display math on its own line",
-    text: "\n$$\n\n$$\n",
-    cursor: 4,
+    latex: "\n$$\n \n$$\n",
+    wrap: "slot",
   },
   {
     id: "frac",
-    kind: "wrap",
-    label: "a/b",
-    hint: "Fraction \\frac{a}{b}",
-    before: "\\frac{",
-    after: "}{b}",
-    placeholder: "a",
+    label: "a⁄b",
+    hint: "Fraction · \\frac{ }{ }",
+    latex: "\\frac{ }{ }",
+    wrap: "slot",
   },
   {
     id: "sqrt",
-    kind: "wrap",
     label: "√",
-    hint: "Square root \\sqrt{x}",
-    before: "\\sqrt{",
-    after: "}",
-    placeholder: "x",
+    hint: "Square root · \\sqrt{ }",
+    latex: "\\sqrt{ }",
+    wrap: "slot",
   },
   {
     id: "pow",
-    kind: "wrap",
-    label: "xⁿ",
-    hint: "Power x^{n}",
-    before: "",
-    after: "^{n}",
-    placeholder: "x",
+    label: "x²",
+    hint: "Power · ^{ }",
+    latex: "^{ }",
   },
   {
     id: "sub",
-    kind: "wrap",
-    label: "xₙ",
-    hint: "Subscript x_{n}",
-    before: "",
-    after: "_{n}",
-    placeholder: "x",
+    label: "x₂",
+    hint: "Subscript · _{ }",
+    latex: "_{ }",
   },
   {
     id: "int",
-    kind: "template",
     label: "∫",
-    hint: "Definite integral",
-    text: "\\int_{a}^{b} f(x)\\,dx",
-    cursor: 6, // caret inside {a}
-    selectLen: 1,
+    hint: "Definite integral · \\int_{ }^{ } f(x)\\,dx",
+    latex: "\\int_{ }^{ } f(x)\\,dx",
   },
   {
     id: "sum",
-    kind: "template",
-    label: "Σ",
-    hint: "Summation",
-    text: "\\sum_{n=1}^{\\infty}",
-    cursor: 6, // inside first {}
-    selectLen: 3,
+    label: "∑",
+    hint: "Summation · \\sum_{ }^{ }",
+    latex: "\\sum_{ }^{ }",
   },
   {
     id: "lim",
-    kind: "template",
     label: "lim",
-    hint: "Limit",
-    text: "\\lim_{x \\to 0}",
-    cursor: 6,
-    selectLen: 1,
+    hint: "Limit · \\lim_{x \\to 0}",
+    latex: "\\lim_{x \\to 0}",
   },
   {
     id: "vec",
-    kind: "wrap",
-    label: "→v",
-    hint: "Vector \\vec{v}",
-    before: "\\vec{",
-    after: "}",
-    placeholder: "v",
-  },
-  {
-    id: "deg",
-    kind: "template",
-    label: "°",
-    hint: "Degree symbol",
-    text: "^{\\circ}",
-    cursor: 8,
+    label: "v⃗",
+    hint: "Vector · \\vec{ }",
+    latex: "\\vec{ }",
+    wrap: "slot",
   },
   {
     id: "pm",
-    kind: "template",
     label: "±",
     hint: "Plus/minus",
-    text: "\\pm ",
-    cursor: 4,
+    latex: "\\pm ",
+  },
+  {
+    id: "deg",
+    label: "°",
+    hint: "Degree symbol",
+    latex: "^{\\circ}",
   },
 ]
 
@@ -174,43 +166,68 @@ export function MathEditor({
 }: MathEditorProps) {
   const taRef = useRef<HTMLTextAreaElement>(null)
 
-  const applySnippet = (s: Snippet) => {
+  /**
+   * Reusable insert helper. Splices `snippet` at the current cursor, honours
+   * `wrap` (inline → wraps in $...$, slot → drops selection into first {}),
+   * and leaves the caret highlighted on the first remaining slot so the user
+   * can just start typing.
+   */
+  function insertMathSnippet(
+    snippet: string,
+    opts?: { wrap?: "inline" | "slot" }
+  ) {
     const ta = taRef.current
     const start = ta?.selectionStart ?? value.length
     const end = ta?.selectionEnd ?? value.length
     const selected = value.slice(start, end)
 
-    let insert = ""
-    let caret = start
-    let selEnd = start
-
-    if (s.kind === "wrap") {
-      const body = selected.length > 0 ? selected : s.placeholder
-      insert = s.before + body + s.after
-      // Highlight the body so the user can immediately type over it.
-      caret = start + s.before.length
-      selEnd = caret + body.length
-    } else {
-      insert = s.text
-      caret = start + s.cursor
-      selEnd = caret + (s.selectLen ?? 0)
+    let insert = snippet
+    if (selected) {
+      if (opts?.wrap === "inline") {
+        insert = snippet.replace("$ $", `$${selected}$`)
+      } else if (opts?.wrap === "slot") {
+        insert = snippet.replace("{ }", `{${selected}}`)
+      }
     }
 
     const next = value.slice(0, start) + insert + value.slice(end)
     onChange(next)
+
     requestAnimationFrame(() => {
       const ta2 = taRef.current
       if (!ta2) return
       ta2.focus()
-      ta2.setSelectionRange(caret, selEnd)
+      // Prefer the first empty slot inside what we just inserted.
+      const insertedEnd = start + insert.length
+      const slot = findNextSlot(next, start)
+      if (slot && slot.end <= insertedEnd) {
+        ta2.setSelectionRange(slot.start, slot.end)
+      } else {
+        ta2.setSelectionRange(insertedEnd, insertedEnd)
+      }
     })
   }
 
-  // Ctrl/Cmd+M toggles an inline math wrapper around the current selection.
   const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    // ⌘M / Ctrl+M → wrap selection in inline math.
     if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "m") {
       e.preventDefault()
-      applySnippet(SNIPPETS[0]) // inline
+      insertMathSnippet("$ $", { wrap: "inline" })
+      return
+    }
+    // Tab / Shift+Tab → jump between {} slots. If there's no further slot we
+    // let the default behavior happen (move focus out of the editor).
+    if (e.key === "Tab") {
+      const ta = taRef.current
+      if (!ta) return
+      const from = e.shiftKey ? (ta.selectionStart ?? 0) : (ta.selectionEnd ?? 0)
+      const slot = e.shiftKey
+        ? findPrevSlot(value, from)
+        : findNextSlot(value, from)
+      if (slot) {
+        e.preventDefault()
+        ta.setSelectionRange(slot.start, slot.end)
+      }
     }
   }
 
@@ -226,7 +243,7 @@ export function MathEditor({
             variant="ghost"
             size={compact ? "xs" : "sm"}
             disabled={disabled}
-            onClick={() => applySnippet(s)}
+            onClick={() => insertMathSnippet(s.latex, { wrap: s.wrap })}
             title={s.hint}
             className="font-medium"
           >
@@ -234,7 +251,11 @@ export function MathEditor({
           </Button>
         ))}
         <span className="ml-auto hidden pr-1.5 text-[10px] text-muted-foreground sm:inline">
-          ⌘M wraps selection in $…$
+          Tab jumps between{" "}
+          <code className="rounded bg-background px-1 py-px font-mono text-[10px]">
+            {"{ }"}
+          </code>{" "}
+          slots · ⌘M wraps selection
         </span>
       </div>
 
@@ -246,7 +267,7 @@ export function MathEditor({
           value={value}
           placeholder={
             placeholder ??
-            "Type here. Use $x^2$ for inline math, $$…$$ for a block. Toolbar buttons wrap your selection."
+            "Type math. Use $x^2$ for inline, $$…$$ for a block. Toolbar inserts { } placeholders — fill them with Tab."
           }
           disabled={disabled}
           onChange={(e) => onChange(e.target.value)}
@@ -262,8 +283,8 @@ export function MathEditor({
         >
           {value.trim() === "" ? (
             <p className="text-xs text-muted-foreground">
-              Preview appears here.{" "}
-              <span className="font-mono">$a^2 + b^2 = c^2$</span> renders as math.
+              Rendered math appears here. Example:{" "}
+              <span className="font-mono">$a^2 + b^2 = c^2$</span>
             </p>
           ) : (
             <MathPreview value={value} />
