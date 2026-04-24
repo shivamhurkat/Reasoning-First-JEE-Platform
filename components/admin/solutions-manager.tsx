@@ -13,8 +13,12 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { DifficultyPicker } from "@/components/admin/difficulty-picker"
-import { ImageUpload } from "@/components/admin/image-upload"
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
   Dialog,
@@ -31,6 +35,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { DifficultyPicker } from "@/components/admin/difficulty-picker"
+import { ImageUpload } from "@/components/admin/image-upload"
 import { MathEditor } from "@/components/math-editor"
 import { MathPreview } from "@/components/math-preview"
 import {
@@ -64,234 +70,7 @@ export type Solution = {
   status: "draft" | "published" | "ai_generated_unverified" | "flagged"
 }
 
-const SECTIONS: Array<{
-  type: SolutionType
-  title: string
-  blurb: string
-}> = [
-  {
-    type: "standard",
-    title: "Standard Solution",
-    blurb: "The textbook step-by-step solve.",
-  },
-  {
-    type: "logical",
-    title: "Logical Reasoning",
-    blurb: "Principle-driven reasoning that avoids heavy computation.",
-  },
-  {
-    type: "elimination",
-    title: "Elimination Method",
-    blurb: "Rule options out using dimensions, limits, or special cases.",
-  },
-  {
-    type: "shortcut",
-    title: "Shortcut / Trick",
-    blurb: "A pattern or formula that cuts time dramatically.",
-  },
-  {
-    type: "pattern",
-    title: "Pattern Recognition",
-    blurb: "Connects this question to a class of similar problems.",
-  },
-  {
-    type: "trap_warning",
-    title: "Traps & Common Mistakes",
-    blurb: "What usually goes wrong and how to avoid it.",
-  },
-]
-
-export function SolutionsManager({
-  questionId,
-  solutions,
-}: {
-  questionId: string
-  solutions: Solution[]
-}) {
-  const byType = useMemo(() => {
-    const m = new Map<SolutionType, Solution>()
-    for (const s of solutions) m.set(s.solution_type, s)
-    return m
-  }, [solutions])
-
-  const [dialog, setDialog] = useState<
-    | null
-    | { kind: "create"; type: SolutionType }
-    | { kind: "edit"; solution: Solution }
-    | { kind: "delete"; solution: Solution }
-  >(null)
-
-  const coveredCount = byType.size
-  const totalTypes = SECTIONS.length
-
-  return (
-    <div className="grid gap-4">
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Completeness</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center gap-3">
-            <div className="flex-1">
-              <div className="mb-1 flex items-center justify-between text-sm">
-                <span>
-                  Solutions: <strong>{coveredCount}</strong> / {totalTypes} types
-                </span>
-                <span className="text-xs text-muted-foreground">
-                  {coveredCount >= 3
-                    ? "Complete enough for students"
-                    : "Aim for standard + one alternative + traps"}
-                </span>
-              </div>
-              <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
-                <div
-                  className={cn(
-                    "h-full transition-all",
-                    coveredCount >= 3 ? "bg-emerald-500" : "bg-primary"
-                  )}
-                  style={{ width: `${(coveredCount / totalTypes) * 100}%` }}
-                />
-              </div>
-            </div>
-            <div className="flex flex-wrap gap-1">
-              {SECTIONS.map((s) => (
-                <Badge
-                  key={s.type}
-                  variant={byType.has(s.type) ? "default" : "outline"}
-                  className="gap-1"
-                >
-                  {byType.has(s.type) ? (
-                    <CheckCircle2 className="size-3" />
-                  ) : (
-                    <Circle className="size-3" />
-                  )}
-                  {s.type}
-                </Badge>
-              ))}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <div className="grid gap-3">
-        {SECTIONS.map((section) => {
-          const existing = byType.get(section.type)
-          return (
-            <Card key={section.type}>
-              <CardHeader>
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <CardTitle className="text-base">{section.title}</CardTitle>
-                    <p className="mt-0.5 text-xs text-muted-foreground">
-                      {section.blurb}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    {existing ? (
-                      <>
-                        <Badge
-                          variant={
-                            existing.status === "published" ? "default" : "outline"
-                          }
-                        >
-                          {existing.status}
-                        </Badge>
-                        <Button
-                          size="icon-sm"
-                          variant="ghost"
-                          aria-label="Edit"
-                          onClick={() =>
-                            setDialog({ kind: "edit", solution: existing })
-                          }
-                        >
-                          <Pencil />
-                        </Button>
-                        <Button
-                          size="icon-sm"
-                          variant="ghost"
-                          aria-label="Delete"
-                          onClick={() =>
-                            setDialog({ kind: "delete", solution: existing })
-                          }
-                        >
-                          <Trash2 />
-                        </Button>
-                      </>
-                    ) : (
-                      <Button
-                        size="sm"
-                        onClick={() =>
-                          setDialog({ kind: "create", type: section.type })
-                        }
-                      >
-                        <Plus /> Add
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              </CardHeader>
-              {existing ? (
-                <CardContent className="grid gap-3">
-                  {existing.title ? (
-                    <p className="text-sm font-medium">{existing.title}</p>
-                  ) : null}
-                  <MathPreview value={existing.content} />
-                  {existing.steps && existing.steps.length > 0 ? (
-                    <ol className="grid gap-2 text-sm">
-                      {existing.steps.map((st, i) => (
-                        <li key={i} className="rounded border p-2">
-                          <div className="mb-1 text-xs font-medium text-muted-foreground">
-                            Step {st.step_number}
-                          </div>
-                          <MathPreview value={st.text} />
-                          {st.explanation ? (
-                            <p className="mt-1 text-xs text-muted-foreground">
-                              {st.explanation}
-                            </p>
-                          ) : null}
-                        </li>
-                      ))}
-                    </ol>
-                  ) : null}
-                  <div className="grid gap-1 text-xs text-muted-foreground">
-                    {existing.time_estimate_seconds != null ? (
-                      <div>⏱ {existing.time_estimate_seconds}s estimate</div>
-                    ) : null}
-                    {existing.when_to_use ? (
-                      <div>
-                        <strong>When to use:</strong> {existing.when_to_use}
-                      </div>
-                    ) : null}
-                    {existing.when_not_to_use ? (
-                      <div>
-                        <strong>When not to use:</strong>{" "}
-                        {existing.when_not_to_use}
-                      </div>
-                    ) : null}
-                    {existing.prerequisites ? (
-                      <div>
-                        <strong>Prerequisites:</strong> {existing.prerequisites}
-                      </div>
-                    ) : null}
-                  </div>
-                </CardContent>
-              ) : null}
-            </Card>
-          )
-        })}
-      </div>
-
-      <SolutionDialog
-        key={dialog ? JSON.stringify(dialog) : "none"}
-        questionId={questionId}
-        dialog={dialog}
-        close={() => setDialog(null)}
-      />
-    </div>
-  )
-}
-
-// ---------- Dialog ----------
+// ---------- Zod schema ----------
 
 const stepSchema = z.object({
   text: z.string().min(1, "Step text required"),
@@ -309,8 +88,8 @@ const formSchema = z
       "pattern",
     ]),
     title: z.string().trim().max(120).optional(),
-    content: z.string().trim(), // empty allowed when image provided
-    solution_image_url: z.string(), // "" = no image
+    content: z.string().trim(),
+    solution_image_url: z.string(),
     steps: z.array(stepSchema),
     time_estimate_seconds: z.string(),
     when_to_use: z.string().optional(),
@@ -331,35 +110,381 @@ const formSchema = z
 
 type FormValues = z.infer<typeof formSchema>
 
-function SolutionDialog({
+// ---------- Section config ----------
+
+const ADDITIONAL_SECTIONS: Array<{
+  type: SolutionType
+  title: string
+  blurb: string
+}> = [
+  {
+    type: "elimination",
+    title: "Elimination Method",
+    blurb: "Rule options out using dimensions, limits, or special cases.",
+  },
+  {
+    type: "pattern",
+    title: "Pattern Recognition",
+    blurb: "Connects this question to a class of similar problems.",
+  },
+  {
+    type: "trap_warning",
+    title: "Traps & Common Mistakes",
+    blurb: "What usually goes wrong and how to avoid it.",
+  },
+]
+
+type ActiveForm = { type: SolutionType; mode: "create" | "edit" } | null
+
+// ---------- Main component ----------
+
+export function SolutionsManager({
   questionId,
-  dialog,
-  close,
+  solutions,
 }: {
   questionId: string
-  dialog:
-    | null
-    | { kind: "create"; type: SolutionType }
-    | { kind: "edit"; solution: Solution }
-    | { kind: "delete"; solution: Solution }
-  close: () => void
+  solutions: Solution[]
+}) {
+  const byType = useMemo(() => {
+    const m = new Map<SolutionType, Solution>()
+    for (const s of solutions) m.set(s.solution_type, s)
+    return m
+  }, [solutions])
+
+  const [activeForm, setActiveForm] = useState<ActiveForm>(null)
+  const [deleteTarget, setDeleteTarget] = useState<Solution | null>(null)
+
+  const hasStandard = byType.has("standard")
+  const hasShortcut = byType.has("shortcut")
+
+  const openForm = (type: SolutionType, mode: "create" | "edit") =>
+    setActiveForm({ type, mode })
+  const closeForm = () => setActiveForm(null)
+
+  const additionalCovered = ADDITIONAL_SECTIONS.filter((s) => byType.has(s.type)).length
+
+  return (
+    <div className="grid gap-4">
+      {/* ---- Completeness indicator ---- */}
+      <div className="flex flex-wrap items-center gap-3 rounded-lg border bg-card p-3">
+        <span className="text-sm font-medium text-muted-foreground">Content ready:</span>
+        <Badge
+          variant={hasStandard ? "default" : "outline"}
+          className={cn("gap-1", hasStandard && "bg-emerald-600 text-white hover:bg-emerald-600")}
+        >
+          {hasStandard ? <CheckCircle2 className="size-3" /> : <Circle className="size-3" />}
+          Standard
+        </Badge>
+        <Badge
+          variant={hasShortcut ? "default" : "outline"}
+          className={cn("gap-1", hasShortcut && "bg-emerald-600 text-white hover:bg-emerald-600")}
+        >
+          {hasShortcut ? <CheckCircle2 className="size-3" /> : <Circle className="size-3" />}
+          Shortcut
+        </Badge>
+        <span className="ml-auto text-xs text-muted-foreground">
+          {hasStandard && hasShortcut
+            ? "Both required solutions present — question is content-ready"
+            : "Add both Standard and Shortcut solutions to mark this question content-ready"}
+        </span>
+      </div>
+
+      {/* ---- Primary: Standard ---- */}
+      <PrimarySection
+        sectionType="standard"
+        title="Standard / Ideal Solution"
+        blurb="The textbook step-by-step solution."
+        solution={byType.get("standard")}
+        questionId={questionId}
+        activeForm={activeForm}
+        onAdd={() => openForm("standard", "create")}
+        onEdit={() => openForm("standard", "edit")}
+        onClose={closeForm}
+        onDelete={() => setDeleteTarget(byType.get("standard")!)}
+        showWhenToUse={false}
+      />
+
+      {/* ---- Primary: Shortcut ---- */}
+      <PrimarySection
+        sectionType="shortcut"
+        title="Shortcut / Reasoning-First Solution"
+        blurb="A pattern or formula that cuts time dramatically."
+        solution={byType.get("shortcut")}
+        questionId={questionId}
+        activeForm={activeForm}
+        onAdd={() => openForm("shortcut", "create")}
+        onEdit={() => openForm("shortcut", "edit")}
+        onClose={closeForm}
+        onDelete={() => setDeleteTarget(byType.get("shortcut")!)}
+        showWhenToUse
+      />
+
+      {/* ---- Additional solutions accordion ---- */}
+      <Accordion>
+        <AccordionItem value="additional">
+          <AccordionTrigger>
+            Additional Solutions (optional) · {additionalCovered}/{ADDITIONAL_SECTIONS.length} added
+          </AccordionTrigger>
+          <AccordionContent>
+            <div className="grid gap-3">
+              {ADDITIONAL_SECTIONS.map((sec) => {
+                const solution = byType.get(sec.type)
+                const isFormOpen = activeForm?.type === sec.type
+                const formMode = isFormOpen ? activeForm!.mode : null
+
+                return (
+                  <Card key={sec.type} className="border-muted/60">
+                    <CardHeader className="py-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-medium">{sec.title}</p>
+                          <p className="text-xs text-muted-foreground">{sec.blurb}</p>
+                        </div>
+                        <div className="flex shrink-0 items-center gap-1">
+                          {solution && !isFormOpen ? (
+                            <>
+                              <Badge
+                                variant={solution.status === "published" ? "default" : "outline"}
+                                className="text-xs"
+                              >
+                                {solution.status}
+                              </Badge>
+                              <Button
+                                size="icon-sm"
+                                variant="ghost"
+                                aria-label="Edit"
+                                onClick={() => openForm(sec.type, "edit")}
+                              >
+                                <Pencil />
+                              </Button>
+                              <Button
+                                size="icon-sm"
+                                variant="ghost"
+                                aria-label="Delete"
+                                onClick={() => setDeleteTarget(solution)}
+                              >
+                                <Trash2 />
+                              </Button>
+                            </>
+                          ) : !isFormOpen ? (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => openForm(sec.type, "create")}
+                            >
+                              <Plus /> Add
+                            </Button>
+                          ) : null}
+                        </div>
+                      </div>
+                    </CardHeader>
+                    {solution && !isFormOpen ? (
+                      <CardContent className="py-3">
+                        <SolutionPreview solution={solution} />
+                      </CardContent>
+                    ) : null}
+                    {isFormOpen ? (
+                      <CardContent className="py-3">
+                        <SolutionForm
+                          questionId={questionId}
+                          type={sec.type}
+                          initial={formMode === "edit" ? (solution ?? null) : null}
+                          onClose={closeForm}
+                          showWhenToUse={false}
+                        />
+                      </CardContent>
+                    ) : null}
+                  </Card>
+                )
+              })}
+            </div>
+          </AccordionContent>
+        </AccordionItem>
+      </Accordion>
+
+      {/* ---- Delete confirm dialog ---- */}
+      <DeleteDialog
+        solution={deleteTarget}
+        questionId={questionId}
+        onClose={() => setDeleteTarget(null)}
+      />
+    </div>
+  )
+}
+
+// ---------- Primary section card ----------
+
+function PrimarySection({
+  sectionType,
+  title,
+  blurb,
+  solution,
+  questionId,
+  activeForm,
+  onAdd,
+  onEdit,
+  onClose,
+  onDelete,
+  showWhenToUse,
+}: {
+  sectionType: SolutionType
+  title: string
+  blurb: string
+  solution: Solution | undefined
+  questionId: string
+  activeForm: ActiveForm
+  onAdd: () => void
+  onEdit: () => void
+  onClose: () => void
+  onDelete: () => void
+  showWhenToUse: boolean
+}) {
+  const isFormOpen = activeForm?.type === sectionType
+  const formMode = isFormOpen ? activeForm!.mode : null
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <CardTitle className="text-base">{title}</CardTitle>
+            <p className="mt-0.5 text-xs text-muted-foreground">{blurb}</p>
+          </div>
+          {solution && !isFormOpen ? (
+            <div className="flex shrink-0 items-center gap-1">
+              <Badge variant={solution.status === "published" ? "default" : "outline"}>
+                {solution.status}
+              </Badge>
+              <Button size="icon-sm" variant="ghost" aria-label="Edit" onClick={onEdit}>
+                <Pencil />
+              </Button>
+              <Button size="icon-sm" variant="ghost" aria-label="Delete" onClick={onDelete}>
+                <Trash2 />
+              </Button>
+            </div>
+          ) : null}
+        </div>
+      </CardHeader>
+      <CardContent className="grid gap-4">
+        {/* Preview of existing solution */}
+        {solution && !isFormOpen ? (
+          <SolutionPreview solution={solution} />
+        ) : null}
+
+        {/* Empty state — prominent add button */}
+        {!solution && !isFormOpen ? (
+          <button
+            type="button"
+            onClick={onAdd}
+            className="flex flex-col items-center gap-2 rounded-lg border-2 border-dashed border-muted-foreground/25 p-8 text-center transition-colors hover:border-muted-foreground/50 hover:bg-muted/30"
+          >
+            <div className="flex size-10 items-center justify-center rounded-full bg-muted">
+              <Plus className="size-5 text-muted-foreground" />
+            </div>
+            <div>
+              <p className="text-sm font-medium">Add {title}</p>
+              <p className="text-xs text-muted-foreground">
+                Upload an image or type the solution
+              </p>
+            </div>
+          </button>
+        ) : null}
+
+        {/* Inline form */}
+        {isFormOpen ? (
+          <SolutionForm
+            questionId={questionId}
+            type={sectionType}
+            initial={formMode === "edit" ? (solution ?? null) : null}
+            onClose={onClose}
+            showWhenToUse={showWhenToUse}
+          />
+        ) : null}
+      </CardContent>
+    </Card>
+  )
+}
+
+// ---------- Solution preview (read-only) ----------
+
+function SolutionPreview({ solution }: { solution: Solution }) {
+  return (
+    <div className="grid gap-3">
+      {solution.title ? (
+        <p className="text-sm font-medium">{solution.title}</p>
+      ) : null}
+      {solution.solution_image_url ? (
+        <div className="overflow-hidden rounded-md border">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={solution.solution_image_url}
+            alt="Solution"
+            className="w-full object-contain max-h-[400px]"
+          />
+        </div>
+      ) : null}
+      {solution.content ? <MathPreview value={solution.content} /> : null}
+      {solution.steps && solution.steps.length > 0 ? (
+        <ol className="grid gap-2 text-sm">
+          {solution.steps.map((st, i) => (
+            <li key={i} className="rounded border p-2">
+              <div className="mb-1 text-xs font-medium text-muted-foreground">
+                Step {st.step_number}
+              </div>
+              <MathPreview value={st.text} />
+              {st.explanation ? (
+                <p className="mt-1 text-xs text-muted-foreground">{st.explanation}</p>
+              ) : null}
+            </li>
+          ))}
+        </ol>
+      ) : null}
+      <div className="grid gap-1 text-xs text-muted-foreground">
+        {solution.time_estimate_seconds != null ? (
+          <div>⏱ {solution.time_estimate_seconds}s estimate</div>
+        ) : null}
+        {solution.when_to_use ? (
+          <div>
+            <strong>When to use:</strong> {solution.when_to_use}
+          </div>
+        ) : null}
+        {solution.when_not_to_use ? (
+          <div>
+            <strong>When not to use:</strong> {solution.when_not_to_use}
+          </div>
+        ) : null}
+        {solution.prerequisites ? (
+          <div>
+            <strong>Prerequisites:</strong> {solution.prerequisites}
+          </div>
+        ) : null}
+      </div>
+    </div>
+  )
+}
+
+// ---------- Inline solution form ----------
+
+function SolutionForm({
+  questionId,
+  type,
+  initial,
+  onClose,
+  showWhenToUse,
+}: {
+  questionId: string
+  type: SolutionType
+  initial: Solution | null
+  onClose: () => void
+  showWhenToUse: boolean
 }) {
   const [pending, startTransition] = useTransition()
-
-  const initial: Solution | null =
-    dialog?.kind === "edit" ? dialog.solution : null
-
-  const [solutionMode, setSolutionMode] = useState<"text" | "image">(
+  const [contentMode, setContentMode] = useState<"text" | "image">(
     initial?.solution_image_url ? "image" : "text"
   )
 
   const defaults: FormValues = {
-    solution_type:
-      dialog?.kind === "create"
-        ? dialog.type
-        : dialog?.kind === "edit"
-          ? dialog.solution.solution_type
-          : "standard",
+    solution_type: type,
     title: initial?.title ?? "",
     content: initial?.content ?? "",
     solution_image_url: initial?.solution_image_url ?? "",
@@ -384,47 +509,6 @@ function SolutionDialog({
     defaultValues: defaults,
   })
   const stepsArray = useFieldArray({ control: form.control, name: "steps" })
-
-  if (!dialog) return null
-
-  if (dialog.kind === "delete") {
-    const handleDelete = () => {
-      startTransition(async () => {
-        const res = await deleteSolution(dialog.solution.id, questionId)
-        if (!res.ok) {
-          toast.error(res.error)
-          return
-        }
-        toast.success("Solution deleted")
-        close()
-      })
-    }
-    return (
-      <Dialog open onOpenChange={(o) => !o && close()}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Delete solution?</DialogTitle>
-            <DialogDescription>
-              This will remove the {dialog.solution.solution_type} solution for
-              this question.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="ghost" onClick={close} disabled={pending}>
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={handleDelete}
-              disabled={pending}
-            >
-              {pending ? "Deleting..." : "Delete"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    )
-  }
 
   const onSubmit = (values: FormValues) => {
     const payload: SolutionInput = {
@@ -453,231 +537,198 @@ function SolutionDialog({
     }
 
     startTransition(async () => {
-      const res =
-        dialog.kind === "edit"
-          ? await updateSolution(dialog.solution.id, payload)
-          : await createSolution(payload)
+      const res = initial
+        ? await updateSolution(initial.id, payload)
+        : await createSolution(payload)
       if (!res.ok) {
         toast.error(res.error)
         return
       }
-      toast.success(dialog.kind === "edit" ? "Solution updated" : "Solution added")
-      close()
+      toast.success(initial ? "Solution updated" : "Solution added")
+      onClose()
     })
   }
 
   return (
-    <Dialog open onOpenChange={(o) => !o && close()}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>
-            {dialog.kind === "edit" ? "Edit" : "Add"}{" "}
-            {SECTIONS.find((s) => s.type === defaults.solution_type)?.title}
-          </DialogTitle>
-        </DialogHeader>
-
-        <form
-          onSubmit={form.handleSubmit(onSubmit)}
-          className="grid gap-4"
-          noValidate
-        >
-          <div className="grid gap-2">
-            <Label>Title (optional)</Label>
-            <Controller
-              control={form.control}
-              name="title"
-              render={({ field }) => (
-                <Input
-                  placeholder="Short descriptor (e.g. 'F=ma shortcut')"
-                  {...field}
-                />
-              )}
-            />
-          </div>
-
-          {/* Mode toggle */}
-          <div className="grid gap-2">
-            <Label>Solution content</Label>
-            <div className="flex gap-1 rounded-lg border p-1 w-fit">
-              <button
-                type="button"
-                onClick={() => {
-                  setSolutionMode("text")
-                  form.setValue("solution_image_url", "")
-                }}
-                className={cn(
-                  "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
-                  solutionMode === "text"
-                    ? "bg-primary text-primary-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground"
-                )}
-              >
-                Type Solution
-              </button>
-              <button
-                type="button"
-                onClick={() => setSolutionMode("image")}
-                className={cn(
-                  "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
-                  solutionMode === "image"
-                    ? "bg-primary text-primary-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground"
-                )}
-              >
-                Upload Image
-              </button>
-            </div>
-          </div>
-
-          {solutionMode === "image" ? (
-            <Controller
-              control={form.control}
-              name="solution_image_url"
-              render={({ field }) => (
-                <div className="grid gap-1">
-                  <ImageUpload
-                    value={field.value || null}
-                    onChange={(url) => field.onChange(url ?? "")}
-                    folder="solutions"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Upload a scan or diagram. Add supplemental text below if needed.
-                  </p>
-                  <Controller
-                    control={form.control}
-                    name="content"
-                    render={({ field: tf }) => (
-                      <MathEditor
-                        label="Supplemental text (optional)"
-                        value={tf.value}
-                        onChange={tf.onChange}
-                        placeholder="Additional notes or steps…"
-                        minHeight={80}
-                        compact
-                      />
-                    )}
-                  />
-                  {form.formState.errors.content ? (
-                    <p className="text-destructive text-xs">
-                      {form.formState.errors.content.message}
-                    </p>
-                  ) : null}
-                </div>
-              )}
-            />
-          ) : (
-            <Controller
-              control={form.control}
-              name="content"
-              render={({ field }) => (
-                <div className="grid gap-1">
-                  <MathEditor
-                    label="Content"
-                    value={field.value}
-                    onChange={field.onChange}
-                    placeholder="The full reasoning. Use $...$ and $$...$$ for math."
-                    minHeight={140}
-                  />
-                  {form.formState.errors.content ? (
-                    <p className="text-destructive text-xs">
-                      {form.formState.errors.content.message}
-                    </p>
-                  ) : null}
-                </div>
-              )}
-            />
+    <form
+      onSubmit={form.handleSubmit(onSubmit)}
+      className="grid gap-4 rounded-lg border bg-muted/20 p-4"
+      noValidate
+    >
+      {/* Title (optional) */}
+      <div className="grid gap-2">
+        <Label>Title (optional)</Label>
+        <Controller
+          control={form.control}
+          name="title"
+          render={({ field }) => (
+            <Input placeholder="Short descriptor (e.g. 'F=ma shortcut')" {...field} />
           )}
+        />
+      </div>
 
-          <div className="grid gap-2">
-            <div className="flex items-center justify-between">
-              <Label>Steps</Label>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() =>
-                  stepsArray.append({ text: "", explanation: "" })
-                }
-              >
-                <Plus /> Add step
-              </Button>
-            </div>
-            <div className="grid gap-3">
-              {stepsArray.fields.map((f, idx) => (
-                <div key={f.id} className="grid gap-2 rounded-md border p-3">
-                  <div className="flex items-center gap-2">
-                    <Badge variant="outline">Step {idx + 1}</Badge>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon-sm"
-                      className="ml-auto"
-                      onClick={() => stepsArray.remove(idx)}
-                      aria-label="Remove step"
-                    >
-                      <Trash2 />
-                    </Button>
-                  </div>
-                  <Controller
-                    control={form.control}
-                    name={`steps.${idx}.text` as const}
-                    render={({ field }) => (
-                      <MathEditor
-                        value={field.value}
-                        onChange={field.onChange}
-                        placeholder="What to do in this step"
-                        minHeight={60}
-                        compact
-                      />
-                    )}
-                  />
-                  <Controller
-                    control={form.control}
-                    name={`steps.${idx}.explanation` as const}
-                    render={({ field }) => (
-                      <Textarea
-                        placeholder="Why this step works (optional)"
-                        rows={2}
-                        {...field}
-                      />
-                    )}
-                  />
-                </div>
-              ))}
-            </div>
-          </div>
+      {/* Content mode toggle */}
+      <div className="grid gap-2">
+        <Label>Solution content</Label>
+        <div className="flex gap-1 rounded-lg border p-1 w-fit">
+          <button
+            type="button"
+            onClick={() => {
+              setContentMode("text")
+              form.setValue("solution_image_url", "")
+            }}
+            className={cn(
+              "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+              contentMode === "text"
+                ? "bg-primary text-primary-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            Type Solution
+          </button>
+          <button
+            type="button"
+            onClick={() => setContentMode("image")}
+            className={cn(
+              "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+              contentMode === "image"
+                ? "bg-primary text-primary-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            Upload Image
+          </button>
+        </div>
+      </div>
 
-          <div className="grid gap-3 md:grid-cols-2">
+      {contentMode === "image" ? (
+        <Controller
+          control={form.control}
+          name="solution_image_url"
+          render={({ field }) => (
             <div className="grid gap-2">
-              <Label>Time estimate (seconds)</Label>
+              <ImageUpload
+                value={field.value || null}
+                onChange={(url) => field.onChange(url ?? "")}
+                folder="solutions"
+              />
               <Controller
                 control={form.control}
-                name="time_estimate_seconds"
+                name="content"
+                render={({ field: tf }) => (
+                  <MathEditor
+                    label="Supplemental text (optional)"
+                    value={tf.value}
+                    onChange={tf.onChange}
+                    placeholder="Additional notes or steps…"
+                    minHeight={80}
+                    compact
+                  />
+                )}
+              />
+              {form.formState.errors.content ? (
+                <p className="text-destructive text-xs">
+                  {form.formState.errors.content.message}
+                </p>
+              ) : null}
+            </div>
+          )}
+        />
+      ) : (
+        <Controller
+          control={form.control}
+          name="content"
+          render={({ field }) => (
+            <div className="grid gap-1">
+              <MathEditor
+                value={field.value}
+                onChange={field.onChange}
+                placeholder="The full reasoning. Use $...$ and $$...$$ for math."
+                minHeight={140}
+              />
+              {form.formState.errors.content ? (
+                <p className="text-destructive text-xs">
+                  {form.formState.errors.content.message}
+                </p>
+              ) : null}
+            </div>
+          )}
+        />
+      )}
+
+      {/* Steps */}
+      <div className="grid gap-2">
+        <div className="flex items-center justify-between">
+          <Label>Steps (optional)</Label>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => stepsArray.append({ text: "", explanation: "" })}
+          >
+            <Plus /> Add step
+          </Button>
+        </div>
+        <div className="grid gap-3">
+          {stepsArray.fields.map((f, idx) => (
+            <div key={f.id} className="grid gap-2 rounded-md border p-3">
+              <div className="flex items-center gap-2">
+                <Badge variant="outline">Step {idx + 1}</Badge>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  className="ml-auto"
+                  onClick={() => stepsArray.remove(idx)}
+                  aria-label="Remove step"
+                >
+                  <Trash2 />
+                </Button>
+              </div>
+              <Controller
+                control={form.control}
+                name={`steps.${idx}.text` as const}
                 render={({ field }) => (
-                  <Input
-                    type="number"
-                    placeholder="optional"
+                  <MathEditor
+                    value={field.value}
+                    onChange={field.onChange}
+                    placeholder="What to do in this step"
+                    minHeight={60}
+                    compact
+                  />
+                )}
+              />
+              <Controller
+                control={form.control}
+                name={`steps.${idx}.explanation` as const}
+                render={({ field }) => (
+                  <Textarea
+                    placeholder="Why this step works (optional)"
+                    rows={2}
                     {...field}
                   />
                 )}
               />
             </div>
-            <div className="grid gap-2">
-              <Label>Difficulty to execute</Label>
-              <Controller
-                control={form.control}
-                name="difficulty_to_execute"
-                render={({ field }) => (
-                  <DifficultyPicker
-                    value={field.value}
-                    onChange={field.onChange}
-                    size="sm"
-                  />
-                )}
-              />
-            </div>
-          </div>
+          ))}
+        </div>
+      </div>
 
+      {/* Time estimate */}
+      <div className="grid gap-2 md:max-w-xs">
+        <Label>Time estimate (seconds)</Label>
+        <Controller
+          control={form.control}
+          name="time_estimate_seconds"
+          render={({ field }) => (
+            <Input type="number" placeholder="optional" {...field} />
+          )}
+        />
+      </div>
+
+      {/* When to use / not use (shortcut section only) */}
+      {showWhenToUse ? (
+        <>
           <Controller
             control={form.control}
             name="when_to_use"
@@ -698,49 +749,101 @@ function SolutionDialog({
               </div>
             )}
           />
+        </>
+      ) : null}
+
+      {/* Difficulty + status */}
+      <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid gap-2">
+          <Label>Difficulty to execute</Label>
           <Controller
             control={form.control}
-            name="prerequisites"
+            name="difficulty_to_execute"
             render={({ field }) => (
-              <div className="grid gap-2">
-                <Label>Prerequisites (optional)</Label>
-                <Textarea rows={2} {...field} />
-              </div>
+              <DifficultyPicker value={field.value} onChange={field.onChange} size="sm" />
             )}
           />
+        </div>
+        <div className="grid gap-2">
+          <Label>Status</Label>
+          <Controller
+            control={form.control}
+            name="status"
+            render={({ field }) => (
+              <Select value={field.value} onValueChange={field.onChange}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="draft">Draft</SelectItem>
+                  <SelectItem value="published">Published</SelectItem>
+                  <SelectItem value="ai_generated_unverified">
+                    AI-generated (unverified)
+                  </SelectItem>
+                  <SelectItem value="flagged">Flagged</SelectItem>
+                </SelectContent>
+              </Select>
+            )}
+          />
+        </div>
+      </div>
 
-          <div className="grid gap-2 md:max-w-xs">
-            <Label>Status</Label>
-            <Controller
-              control={form.control}
-              name="status"
-              render={({ field }) => (
-                <Select value={field.value} onValueChange={field.onChange}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="draft">Draft</SelectItem>
-                    <SelectItem value="published">Published</SelectItem>
-                    <SelectItem value="ai_generated_unverified">
-                      AI-generated (unverified)
-                    </SelectItem>
-                    <SelectItem value="flagged">Flagged</SelectItem>
-                  </SelectContent>
-                </Select>
-              )}
-            />
-          </div>
+      {/* Form actions */}
+      <div className="flex items-center justify-end gap-2">
+        <Button type="button" variant="ghost" onClick={onClose} disabled={pending}>
+          Cancel
+        </Button>
+        <Button type="submit" disabled={pending}>
+          {pending ? "Saving..." : "Save"}
+        </Button>
+      </div>
+    </form>
+  )
+}
 
-          <DialogFooter>
-            <Button type="button" variant="ghost" onClick={close} disabled={pending}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={pending}>
-              {pending ? "Saving..." : "Save"}
-            </Button>
-          </DialogFooter>
-        </form>
+// ---------- Delete confirmation dialog ----------
+
+function DeleteDialog({
+  solution,
+  questionId,
+  onClose,
+}: {
+  solution: Solution | null
+  questionId: string
+  onClose: () => void
+}) {
+  const [pending, startTransition] = useTransition()
+
+  const handleDelete = () => {
+    if (!solution) return
+    startTransition(async () => {
+      const res = await deleteSolution(solution.id, questionId)
+      if (!res.ok) {
+        toast.error(res.error)
+        return
+      }
+      toast.success("Solution deleted")
+      onClose()
+    })
+  }
+
+  return (
+    <Dialog open={!!solution} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Delete solution?</DialogTitle>
+          <DialogDescription>
+            This will remove the {solution?.solution_type} solution for this question.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <Button variant="ghost" onClick={onClose} disabled={pending}>
+            Cancel
+          </Button>
+          <Button variant="destructive" onClick={handleDelete} disabled={pending}>
+            {pending ? "Deleting..." : "Delete"}
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   )

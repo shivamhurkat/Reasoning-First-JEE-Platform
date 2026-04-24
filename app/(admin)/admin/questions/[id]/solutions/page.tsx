@@ -23,7 +23,7 @@ export default async function ManageSolutionsPage({
     supabase
       .from("questions")
       .select(
-        "id, question_text, question_type, options, correct_answer, difficulty, status, source, year, topics(name, chapters(name, subjects(name)))"
+        "id, question_text, question_image_url, question_type, options, correct_answer, difficulty, status, source, year, topics(name, chapters(name, subjects(name)))"
       )
       .eq("id", params.id)
       .single(),
@@ -39,6 +39,7 @@ export default async function ManageSolutionsPage({
   const q = qRes.data as unknown as {
     id: string
     question_text: string
+    question_image_url: string | null
     question_type: "single_correct" | "multi_correct" | "numerical" | "subjective"
     options: { id: string; text: string }[] | null
     correct_answer:
@@ -80,6 +81,7 @@ export default async function ManageSolutionsPage({
       | "pattern"
     title: string | null
     content: string
+    solution_image_url: string | null
     steps: { step_number: number; text: string; explanation?: string | null }[] | null
     time_estimate_seconds: number | null
     when_to_use: string | null
@@ -137,7 +139,19 @@ export default async function ManageSolutionsPage({
           ) : null}
         </CardHeader>
         <CardContent className="grid gap-4">
-          <MathPreview value={q.question_text} />
+          {q.question_image_url ? (
+            <div className="overflow-hidden rounded-md border">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={q.question_image_url}
+                alt="Question"
+                className="w-full object-contain max-h-[500px]"
+              />
+            </div>
+          ) : null}
+          {q.question_text ? (
+            <MathPreview value={q.question_text} />
+          ) : null}
 
           {q.options && q.options.length > 0 ? (
             <div className="grid gap-1.5">

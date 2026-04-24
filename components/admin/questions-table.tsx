@@ -18,7 +18,7 @@ import {
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 
 import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
+import { Button, buttonVariants } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
@@ -111,9 +111,6 @@ export function QuestionsTable({
   >(null)
   const [pending, startTransition] = useTransition()
 
-  // Optimistic view: apply pending status/delete changes locally so the UI
-  // updates the instant the user clicks, without waiting for the server
-  // roundtrip + revalidation.
   type Patch =
     | { kind: "status"; ids: string[]; status: QuestionRow["status"] }
     | { kind: "delete"; ids: string[] }
@@ -314,9 +311,17 @@ export function QuestionsTable({
                 <TableRow
                   key={r.id}
                   data-state={selected.has(r.id) ? "selected" : undefined}
-                  className={selected.has(r.id) ? "bg-muted/40" : undefined}
+                  className={cn(
+                    "cursor-pointer",
+                    selected.has(r.id) ? "bg-muted/40" : undefined
+                  )}
+                  onClick={(e) => {
+                    // Don't navigate when clicking interactive elements
+                    if ((e.target as Element).closest("button, a, input, [role='checkbox']")) return
+                    router.push(`/admin/questions/${r.id}/solutions`)
+                  }}
                 >
-                  <TableCell>
+                  <TableCell onClick={(e) => e.stopPropagation()}>
                     <Checkbox
                       checked={selected.has(r.id)}
                       onCheckedChange={() => toggleRow(r.id)}
@@ -363,27 +368,26 @@ export function QuestionsTable({
                       })}
                     </span>
                   </TableCell>
-                  <TableCell>
+                  <TableCell onClick={(e) => e.stopPropagation()}>
                     <DropdownMenu>
+                      {/* Render trigger as a plain <button> with button styles to avoid
+                          conflicting with ButtonPrimitive's own useButton event stack */}
                       <DropdownMenuTrigger
-                        render={
-                          <Button
-                            variant="ghost"
-                            size="icon-sm"
-                            aria-label="Row actions"
-                          >
-                            <MoreHorizontal />
-                          </Button>
-                        }
-                      />
+                        className={cn(
+                          buttonVariants({ variant: "ghost", size: "icon-sm" })
+                        )}
+                        aria-label="Row actions"
+                      >
+                        <MoreHorizontal />
+                      </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-52">
                         <DropdownMenuItem
-                          render={<Link href={`/admin/questions/${r.id}/edit`} />}
+                          onClick={() => router.push(`/admin/questions/${r.id}/edit`)}
                         >
                           <Pencil /> Edit question
                         </DropdownMenuItem>
                         <DropdownMenuItem
-                          render={<Link href={`/admin/questions/${r.id}/solutions`} />}
+                          onClick={() => router.push(`/admin/questions/${r.id}/solutions`)}
                         >
                           <Wrench /> Manage solutions
                         </DropdownMenuItem>
