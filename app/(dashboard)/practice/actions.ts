@@ -10,7 +10,7 @@ import {
   type QuestionData,
   type SolutionData,
 } from "@/lib/queries/practice"
-import type { ApproachId, SolutionType } from "@/lib/constants/practice"
+import type { ApproachId } from "@/lib/constants/practice"
 
 // ---------- helpers ----------
 
