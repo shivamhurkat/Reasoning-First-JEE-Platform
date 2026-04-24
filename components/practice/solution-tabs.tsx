@@ -30,20 +30,21 @@ export function SolutionTabs({
   const byType = new Map<SolutionType, SolutionData>()
   for (const s of solutions) byType.set(s.solution_type, s)
 
-  const yourTabType = chosenApproach
-    ? APPROACH_TO_SOLUTION[chosenApproach]
-    : null
+  const yourTabType = chosenApproach ? APPROACH_TO_SOLUTION[chosenApproach] : null
 
-  // Default tab: prefer the user's approach if available, else standard, else
-  // the first available in canonical order.
   const defaultTab =
     (yourTabType && byType.has(yourTabType) && yourTabType) ||
     (byType.has("standard") ? "standard" : SOLUTION_TYPE_ORDER.find((t) => byType.has(t))) ||
     SOLUTION_TYPE_ORDER[0]
 
   return (
-    <Tabs defaultValue={defaultTab} className="grid gap-4">
-      <TabsList className="flex flex-wrap">
+    <Tabs defaultValue={defaultTab} className="grid gap-3">
+      {/* Horizontal-scroll tab bar — no-scrollbar hides the scrollbar visually.
+          TabsList is NOT a scrollable list of content, so backdrop-filter is safe
+          if needed, but we're not using it here. */}
+      <TabsList
+        className="flex w-full overflow-x-auto no-scrollbar rounded-lg gap-0.5 h-auto p-1"
+      >
         {SOLUTION_TYPE_ORDER.map((t) => {
           const has = byType.has(t)
           const isYours = yourTabType === t
@@ -53,17 +54,14 @@ export function SolutionTabs({
               value={t}
               disabled={!has}
               className={cn(
-                "gap-1.5",
+                "shrink-0 whitespace-nowrap gap-1 text-xs px-3 py-1.5 min-h-[36px]",
                 isYours && "data-[selected]:bg-primary/10"
               )}
             >
               {SOLUTION_TYPE_LABELS[t]}
               {isYours ? (
-                <Badge
-                  variant="secondary"
-                  className="h-4 px-1 text-[10px] leading-none"
-                >
-                  Your approach
+                <Badge variant="secondary" className="h-4 px-1 text-[9px] leading-none">
+                  Yours
                 </Badge>
               ) : null}
             </TabsTrigger>
@@ -90,21 +88,21 @@ function SolutionBody({ solution }: { solution: SolutionData }) {
     solution.solution_type === "pattern"
 
   return (
-    <div className="grid gap-4 rounded-xl border bg-card p-5">
+    <div className="grid gap-4 rounded-xl border bg-card p-4 md:p-5">
       {solution.title ? (
         <h3 className="text-base font-medium">{solution.title}</h3>
       ) : null}
 
       <div className="flex flex-wrap items-center gap-2">
         {solution.time_estimate_seconds != null ? (
-          <Badge variant="secondary" className="gap-1">
+          <Badge variant="secondary" className="gap-1 text-xs">
             <Clock className="size-3" />
             ~{Math.round(solution.time_estimate_seconds)}s
           </Badge>
         ) : null}
         {solution.difficulty_to_execute != null ? (
-          <Badge variant="outline">
-            Execution difficulty {solution.difficulty_to_execute}/5
+          <Badge variant="outline" className="text-xs">
+            Difficulty {solution.difficulty_to_execute}/5
           </Badge>
         ) : null}
       </div>
@@ -115,6 +113,7 @@ function SolutionBody({ solution }: { solution: SolutionData }) {
           <img
             src={solution.solution_image_url}
             alt="Solution"
+            loading="lazy"
             className="w-full object-contain max-h-[500px]"
           />
         </div>
@@ -124,26 +123,20 @@ function SolutionBody({ solution }: { solution: SolutionData }) {
       {solution.steps && solution.steps.length > 0 ? (
         <ol className="grid gap-2">
           {solution.steps.map((st, i) => (
-            <li
-              key={i}
-              className="rounded-md border bg-muted/30 p-3 text-sm"
-            >
+            <li key={i} className="rounded-md border bg-muted/30 p-3 text-sm">
               <div className="mb-1 text-xs font-medium text-muted-foreground">
                 Step {st.step_number}
               </div>
               <MathPreview value={st.text} />
               {st.explanation ? (
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {st.explanation}
-                </p>
+                <p className="mt-1 text-xs text-muted-foreground">{st.explanation}</p>
               ) : null}
             </li>
           ))}
         </ol>
       ) : null}
 
-      {showCallouts &&
-      (solution.when_to_use || solution.when_not_to_use) ? (
+      {showCallouts && (solution.when_to_use || solution.when_not_to_use) ? (
         <div className="grid gap-2 sm:grid-cols-2">
           {solution.when_to_use ? (
             <Callout title="When to use">{solution.when_to_use}</Callout>
@@ -195,7 +188,7 @@ function Callout({
 function EmptySolution({ type }: { type: SolutionType }) {
   return (
     <div className="flex items-center gap-2 rounded-lg border border-dashed bg-muted/30 p-4 text-sm text-muted-foreground">
-      <Info className="size-4" />
+      <Info className="size-4 shrink-0" />
       No {SOLUTION_TYPE_LABELS[type].toLowerCase()} solution for this question.
     </div>
   )

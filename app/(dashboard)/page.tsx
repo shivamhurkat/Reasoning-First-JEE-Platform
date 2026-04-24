@@ -3,8 +3,6 @@ import { formatDistanceToNowStrict } from "date-fns"
 import {
   ArrowRight,
   Flame,
-  Gauge,
-  ListChecks,
   Play,
   Sparkles,
   Timer,
@@ -16,13 +14,6 @@ import { createClient } from "@/lib/supabase/server"
 import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
 
 export const dynamic = "force-dynamic"
 
@@ -44,25 +35,19 @@ export default async function DashboardHomePage() {
   const [profileRes, attemptsRes, sessionsRes] = await Promise.all([
     supabase
       .from("user_profiles")
-      .select(
-        "full_name, email, xp_total, current_streak, longest_streak, last_active_date"
-      )
+      .select("full_name, email, xp_total, current_streak, longest_streak, last_active_date")
       .eq("id", user.id)
       .maybeSingle(),
     supabase
       .from("practice_attempts")
-      .select(
-        "id, is_correct, time_taken_seconds, question_id, questions(topic_id, topics(name, chapters(name, subjects(name))))"
-      )
+      .select("id, is_correct, time_taken_seconds, question_id, questions(topic_id, topics(name, chapters(name, subjects(name))))")
       .eq("user_id", user.id),
     supabase
       .from("practice_sessions")
-      .select(
-        "id, started_at, ended_at, total_questions, correct_count, total_time_seconds, topics(name), chapters(name), subjects(name)"
-      )
+      .select("id, started_at, ended_at, total_questions, correct_count, total_time_seconds, topics(name), chapters(name), subjects(name)")
       .eq("user_id", user.id)
       .order("started_at", { ascending: false })
-      .limit(5),
+      .limit(3),
   ])
 
   const profile = profileRes.data
@@ -73,10 +58,7 @@ export default async function DashboardHomePage() {
     question_id: string
     questions?: {
       topic_id: string
-      topics?: {
-        name?: string
-        chapters?: { name?: string; subjects?: { name?: string } | null } | null
-      } | null
+      topics?: { name?: string; chapters?: { name?: string; subjects?: { name?: string } | null } | null } | null
     } | null
   }>
   const sessions = (sessionsRes.data ?? []) as unknown as Array<{
@@ -93,21 +75,10 @@ export default async function DashboardHomePage() {
 
   const totalAttempts = attempts.length
   const totalCorrect = attempts.filter((a) => a.is_correct === true).length
-  const overallAccuracy =
-    totalAttempts > 0 ? Math.round((totalCorrect / totalAttempts) * 100) : null
-  const totalPracticeSeconds = attempts.reduce(
-    (s, a) => s + (a.time_taken_seconds ?? 0),
-    0
-  )
+  const totalPracticeSeconds = attempts.reduce((s, a) => s + (a.time_taken_seconds ?? 0), 0)
 
-  // Weak areas: group by topic_id, include those with ≥5 attempts and <50% accuracy.
-  type Bucket = {
-    topicId: string
-    topicName: string
-    crumb: string
-    attempted: number
-    correct: number
-  }
+  // Weak areas
+  type Bucket = { topicId: string; topicName: string; crumb: string; attempted: number; correct: number }
   const byTopic = new Map<string, Bucket>()
   for (const a of attempts) {
     const topicId = a.questions?.topic_id
@@ -115,10 +86,7 @@ export default async function DashboardHomePage() {
     let b = byTopic.get(topicId)
     if (!b) {
       const topicName = a.questions?.topics?.name ?? "—"
-      const crumb = [
-        a.questions?.topics?.chapters?.subjects?.name,
-        a.questions?.topics?.chapters?.name,
-      ]
+      const crumb = [a.questions?.topics?.chapters?.subjects?.name, a.questions?.topics?.chapters?.name]
         .filter(Boolean)
         .join(" › ")
       b = { topicId, topicName, crumb, attempted: 0, correct: 0 }
@@ -129,238 +97,171 @@ export default async function DashboardHomePage() {
   }
   const weak = Array.from(byTopic.values())
     .filter((b) => b.attempted >= 5 && b.correct / b.attempted < 0.5)
-    .sort(
-      (a, b) => a.correct / a.attempted - b.correct / b.attempted
-    )
-    .slice(0, 3)
+    .sort((a, b) => a.correct / a.attempted - b.correct / b.attempted)
+    .slice(0, 6)
 
-  const greeting =
-    profile?.full_name?.trim() || profile?.email?.split("@")[0] || "there"
+  // Extract first name for greeting
+  const rawName = profile?.full_name?.trim() || profile?.email?.split("@")[0] || "there"
+  const firstName = rawName.split(" ")[0]
+
   const streak = profile?.current_streak ?? 0
   const xp = profile?.xp_total ?? 0
-
   const isOnboarding = totalAttempts === 0
 
   return (
-    <div className="grid gap-8">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">
-            Welcome back, {greeting}
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            {isOnboarding
-              ? "Let's get your first session on the board."
-              : "Keep the momentum going."}
-          </p>
+    <div className="grid gap-6">
+      {/* ── Greeting row ── */}
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">
+          Hey {firstName} 👋
+        </h1>
+        <p className="mt-0.5 text-sm text-muted-foreground">
+          {isOnboarding ? "Let's start your first session." : "Keep the momentum going."}
+        </p>
+      </div>
+
+      {/* ── Streak + XP compact row ── */}
+      <div className="flex items-center gap-2">
+        <div
+          className={cn(
+            "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium",
+            streak > 0
+              ? "bg-accent-warm/15 text-amber-700"
+              : "bg-muted text-muted-foreground"
+          )}
+        >
+          <Flame className={cn("size-4", streak > 0 ? "text-amber-500" : "text-muted-foreground")} />
+          {streak > 0 ? `${streak}-day streak` : "No streak yet"}
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge
-            variant={streak > 0 ? "default" : "outline"}
-            className={cn(
-              "gap-1 px-2.5 py-1 text-sm",
-              streak > 0 && "bg-amber-500 hover:bg-amber-500 text-white"
-            )}
-          >
-            <Flame className="size-3.5" />
-            {streak > 0 ? `${streak}-day streak` : "Start your streak"}
-          </Badge>
-          <Badge variant="secondary" className="gap-1 px-2.5 py-1 text-sm">
-            <Trophy className="size-3.5" />
-            {xp} XP
-          </Badge>
+        <div className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1.5 text-sm font-medium text-primary">
+          <Trophy className="size-4" />
+          {xp} XP
         </div>
       </div>
 
+      {/* ── Primary CTA ── */}
       {isOnboarding ? (
-        <Card className="border-primary/20 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <Sparkles className="size-4 text-primary" />
-              Start your first practice session
-            </CardTitle>
-            <CardDescription>
-              Each question forces you to commit to an approach before you
-              see the answer — that&apos;s the point. You learn how you
-              reason, not just whether you got it right.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button render={<Link href="/practice" />}>
-              <Play /> Begin practicing
-            </Button>
-          </CardContent>
-        </Card>
+        <div className="rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent p-5">
+          <div className="mb-1 flex items-center gap-2">
+            <Sparkles className="size-4 text-primary" />
+            <h2 className="font-semibold">Start your first practice session</h2>
+          </div>
+          <p className="mb-4 text-sm text-muted-foreground">
+            Commit to an approach before you see the answer. You&apos;ll learn how you reason, not just whether you got it right.
+          </p>
+          <Button render={<Link href="/practice" />} className="w-full min-h-[48px]">
+            <Play /> Begin practising
+          </Button>
+        </div>
       ) : (
-        <>
-          <section className="grid gap-3 sm:grid-cols-3">
-            <MiniStat
-              icon={ListChecks}
-              label="Questions attempted"
-              value={String(totalAttempts)}
-            />
-            <MiniStat
-              icon={Gauge}
-              label="Overall accuracy"
-              value={
-                overallAccuracy != null ? `${overallAccuracy}%` : "—"
-              }
-            />
-            <MiniStat
-              icon={Timer}
-              label="Time practised"
-              value={fmt(totalPracticeSeconds)}
-            />
-          </section>
-
-          <Card className="border-primary/20 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <Sparkles className="size-4 text-primary" />
-                Jump back in
-              </CardTitle>
-              <CardDescription>
-                Pick a subject, commit to an approach, get instant
-                reasoning-first feedback.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button render={<Link href="/practice" />}>
-                <Play /> Continue practising
-                <ArrowRight className="ml-1" />
-              </Button>
-            </CardContent>
-          </Card>
-        </>
+        <Button render={<Link href="/practice" />} className="w-full min-h-[48px] text-base">
+          <Play /> Continue practising
+          <ArrowRight className="ml-auto" />
+        </Button>
       )}
 
-      <section className="grid gap-3">
-        <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-          <TrendingDown className="size-3.5" />
-          Your weak areas
-        </h2>
-        {weak.length === 0 ? (
-          <div className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
-            Practise more to see insights here — we need at least 5 attempts
-            per topic to surface patterns.
-          </div>
-        ) : (
-          <div className="grid gap-2">
+      {/* ── Stats row (non-onboarding) ── */}
+      {!isOnboarding ? (
+        <div className="grid grid-cols-3 gap-2">
+          <StatPill label="Attempted" value={String(totalAttempts)} />
+          <StatPill
+            label="Accuracy"
+            value={totalAttempts > 0 ? `${Math.round((totalCorrect / totalAttempts) * 100)}%` : "—"}
+          />
+          <StatPill label="Practised" value={fmt(totalPracticeSeconds)} />
+        </div>
+      ) : null}
+
+      {/* ── Weak areas: horizontal chip scroll ── */}
+      {weak.length > 0 ? (
+        <section>
+          <h2 className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            <TrendingDown className="size-3.5" />
+            Weak areas
+          </h2>
+          {/* horizontal scroll — no scrollbar visually, no backdrop-filter */}
+          <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
             {weak.map((w) => {
               const pct = Math.round((w.correct / w.attempted) * 100)
               return (
                 <div
                   key={w.topicId}
-                  className="flex items-center gap-3 rounded-lg border bg-card p-3"
+                  className="shrink-0 rounded-xl border bg-card px-3 py-2.5 min-w-[140px] max-w-[180px]"
                 >
-                  <div className="min-w-0 flex-1">
-                    <div className="font-medium">{w.topicName}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {w.crumb}
-                    </div>
-                  </div>
-                  <Badge variant="destructive">{pct}%</Badge>
-                  <span className="text-xs text-muted-foreground">
-                    {w.correct}/{w.attempted}
-                  </span>
+                  <p className="text-sm font-medium leading-snug">{w.topicName}</p>
+                  <p className="mt-0.5 text-xs text-muted-foreground truncate">{w.crumb}</p>
+                  <Badge variant="destructive" className="mt-1.5 text-xs">
+                    {pct}%
+                  </Badge>
                 </div>
               )
             })}
           </div>
-        )}
-      </section>
+        </section>
+      ) : null}
 
-      <section className="grid gap-3">
-        <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-          Recent sessions
-        </h2>
-        {sessions.length === 0 ? (
-          <div className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
-            No sessions yet.
-          </div>
-        ) : (
+      {/* ── Recent sessions ── */}
+      {sessions.length > 0 ? (
+        <section>
+          <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            Recent sessions
+          </h2>
           <div className="grid gap-2">
             {sessions.map((s) => {
-              const scope =
-                s.topics?.name || s.chapters?.name || s.subjects?.name || "Mixed"
-              const accuracy =
-                s.total_questions > 0
-                  ? Math.round((s.correct_count / s.total_questions) * 100)
-                  : null
-              const ago = formatDistanceToNowStrict(new Date(s.started_at), {
-                addSuffix: true,
-              })
+              const scope = s.topics?.name || s.chapters?.name || s.subjects?.name || "Mixed"
+              const accuracy = s.total_questions > 0
+                ? Math.round((s.correct_count / s.total_questions) * 100)
+                : null
+              const ago = formatDistanceToNowStrict(new Date(s.started_at), { addSuffix: true })
               const inProgress = s.ended_at == null
-              const href = inProgress
-                ? `/practice/session/${s.id}`
-                : `/practice/session/${s.id}/summary`
+              const href = inProgress ? `/practice/session/${s.id}` : `/practice/session/${s.id}/summary`
               return (
                 <Link
                   key={s.id}
                   href={href}
-                  className="flex items-center gap-3 rounded-lg border bg-card p-3 transition-colors hover:border-primary/40"
+                  className="flex items-center gap-3 rounded-xl border bg-card px-4 py-3 min-h-[56px] transition-colors hover:border-primary/40"
                 >
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
-                      <span className="font-medium">{scope}</span>
-                      {inProgress ? (
-                        <Badge variant="outline">In progress</Badge>
-                      ) : null}
+                      <span className="font-medium text-sm">{scope}</span>
+                      {inProgress ? <Badge variant="outline" className="text-xs">In progress</Badge> : null}
                     </div>
-                    <div className="text-xs text-muted-foreground">{ago}</div>
+                    <div className="text-xs text-muted-foreground mt-0.5">
+                      {s.correct_count}/{s.total_questions} correct · {ago}
+                    </div>
                   </div>
                   {accuracy != null ? (
                     <Badge
-                      variant={
-                        accuracy >= 70
-                          ? "default"
-                          : accuracy >= 40
-                            ? "secondary"
-                            : "destructive"
-                      }
-                      className={cn(
-                        accuracy >= 70 && "bg-emerald-600 hover:bg-emerald-600"
-                      )}
+                      variant={accuracy >= 70 ? "default" : accuracy >= 40 ? "secondary" : "destructive"}
+                      className={cn(accuracy >= 70 && "bg-emerald-600 hover:bg-emerald-600")}
                     >
                       {accuracy}%
                     </Badge>
                   ) : null}
-                  <span className="text-xs text-muted-foreground">
-                    {s.correct_count}/{s.total_questions}
-                  </span>
-                  <ArrowRight className="size-4 text-muted-foreground" />
+                  <ArrowRight className="size-4 shrink-0 text-muted-foreground" />
                 </Link>
               )
             })}
           </div>
-        )}
-      </section>
+        </section>
+      ) : null}
+
+      {/* ── Time stat (non-onboarding) ── */}
+      {!isOnboarding ? (
+        <p className="text-center text-xs text-muted-foreground">
+          <Timer className="inline size-3 mr-1" />
+          {fmt(totalPracticeSeconds)} total practice time
+        </p>
+      ) : null}
     </div>
   )
 }
 
-function MiniStat({
-  icon: Icon,
-  label,
-  value,
-}: {
-  icon: React.ComponentType<{ className?: string }>
-  label: string
-  value: string
-}) {
+function StatPill({ label, value }: { label: string; value: string }) {
   return (
-    <Card className="transition-shadow duration-150 hover:shadow-md">
-      <CardContent className="flex items-start gap-3 p-4">
-        <div className="mt-0.5 inline-flex size-8 items-center justify-center rounded-lg bg-muted">
-          <Icon className="size-4 text-muted-foreground" />
-        </div>
-        <div>
-          <p className="text-xs uppercase tracking-wide text-muted-foreground">
-            {label}
-          </p>
-          <p className="mt-0.5 text-xl font-semibold tabular-nums">{value}</p>
-        </div>
-      </CardContent>
-    </Card>
+    <div className="rounded-xl border bg-card px-3 py-3 text-center">
+      <p className="text-lg font-bold tabular-nums leading-none">{value}</p>
+      <p className="mt-1 text-[10px] uppercase tracking-wide text-muted-foreground">{label}</p>
+    </div>
   )
 }

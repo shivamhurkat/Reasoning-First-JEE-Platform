@@ -6,14 +6,17 @@ export default function AuthLayout({
   children: React.ReactNode
 }) {
   return (
-    <div className="relative flex min-h-screen items-center justify-center p-4 bg-background">
-      {/* Subtle radial gradient behind the card */}
+    /* min-h-screen so background fills on short screens;
+       items-start on mobile (form starts at top with padding),
+       items-center on md+ (centred in viewport) */
+    <div className="relative flex min-h-screen items-start justify-center bg-background px-4 pt-12 pb-8 md:items-center md:py-8">
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-10%,hsl(var(--primary)/0.08),transparent)]"
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-10%,oklch(0.46_0.22_264/0.08),transparent)]"
       />
+      {/* Full-width on mobile, capped at 420px on larger screens */}
       <div className="relative w-full max-w-[420px]">
-        <div className="mb-8 text-center">
+        <div className="mb-6 text-center">
           <Link href="/" className="inline-block">
             <span className="text-2xl font-bold tracking-tight">
               ReasonLab

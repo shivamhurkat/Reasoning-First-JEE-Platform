@@ -14,8 +14,6 @@ export type AnswerInput =
   | { type: "subjective"; value: string }
   | null
 
-// Builds an empty AnswerInput for a given question type — used when the
-// client first transitions into "solving" state.
 export function emptyAnswerFor(question: QuestionData): AnswerInput {
   switch (question.question_type) {
     case "single_correct":
@@ -49,39 +47,35 @@ export function AnswerArea({
   question: QuestionData
   answer: AnswerInput
   onChange: (next: AnswerInput) => void
-  /** When true, inputs render read-only and visually de-emphasised (post-submit). */
   locked?: boolean
-  /** When true, inputs are inert and show a hint. */
   disabled?: boolean
 }) {
   if (question.question_type === "single_correct") {
-    const current =
-      answer && answer.type === "single" ? answer.value : ""
+    const current = answer && answer.type === "single" ? answer.value : ""
     return (
       <div className="grid gap-2" aria-disabled={disabled}>
         {(question.options ?? []).map((opt, idx) => {
-          const letterKey = String.fromCharCode(65 + idx) // A, B, C, D
+          const letterKey = String.fromCharCode(65 + idx)
           const active = current === opt.id
           return (
             <button
               key={opt.id}
               type="button"
               disabled={disabled || locked}
-              onClick={() =>
-                onChange({ type: "single", value: opt.id })
-              }
+              onClick={() => onChange({ type: "single", value: opt.id })}
               className={cn(
-                "flex w-full items-start gap-3 rounded-lg border bg-card px-3 py-2.5 text-left transition-all outline-none",
+                "flex w-full min-h-[52px] items-center gap-3 rounded-xl border bg-card px-3 py-3 text-left",
+                "transition-all duration-150 outline-none",
                 active
                   ? "border-primary bg-primary/5 ring-2 ring-primary/30"
                   : "hover:border-primary/40",
-                "focus-visible:ring-3 focus-visible:ring-ring/40",
+                "focus-visible:ring-2 focus-visible:ring-ring/40",
                 (disabled || locked) && "pointer-events-none opacity-70"
               )}
             >
               <span
                 className={cn(
-                  "mt-0.5 inline-flex size-6 items-center justify-center rounded-md border text-xs font-semibold",
+                  "inline-flex size-7 shrink-0 items-center justify-center rounded-lg border text-xs font-semibold",
                   active
                     ? "border-primary bg-primary text-primary-foreground"
                     : "text-muted-foreground"
@@ -100,8 +94,7 @@ export function AnswerArea({
   }
 
   if (question.question_type === "multi_correct") {
-    const values =
-      answer && answer.type === "multi" ? new Set(answer.values) : new Set()
+    const values = answer && answer.type === "multi" ? new Set(answer.values) : new Set()
     return (
       <div className="grid gap-2">
         {(question.options ?? []).map((opt, idx) => {
@@ -118,13 +111,12 @@ export function AnswerArea({
                 else next.add(opt.id)
                 onChange({
                   type: "multi",
-                  values: Array.from(next).filter(
-                    (v): v is string => typeof v === "string"
-                  ),
+                  values: Array.from(next).filter((v): v is string => typeof v === "string"),
                 })
               }}
               className={cn(
-                "flex w-full items-start gap-3 rounded-lg border bg-card px-3 py-2.5 text-left transition-all",
+                "flex w-full min-h-[52px] items-center gap-3 rounded-xl border bg-card px-3 py-3 text-left",
+                "transition-all duration-150",
                 active
                   ? "border-primary bg-primary/5 ring-2 ring-primary/30"
                   : "hover:border-primary/40",
@@ -133,7 +125,7 @@ export function AnswerArea({
             >
               <span
                 className={cn(
-                  "mt-0.5 inline-flex size-6 items-center justify-center rounded-md border text-xs font-semibold",
+                  "inline-flex size-7 shrink-0 items-center justify-center rounded-lg border text-xs font-semibold",
                   active
                     ? "border-primary bg-primary text-primary-foreground"
                     : "text-muted-foreground"
@@ -159,10 +151,11 @@ export function AnswerArea({
         ? String(answer.value)
         : ""
     return (
-      <div className="grid gap-2 md:max-w-sm">
-        <Label htmlFor="num-answer" className="text-xs text-muted-foreground">
-          Your numerical answer (tolerance ± {tolerance})
+      <div className="grid gap-2">
+        <Label htmlFor="num-answer" className="text-sm text-muted-foreground">
+          Your answer — tolerance ± {tolerance}
         </Label>
+        {/* font-size 16px enforced by globals.css; height 48px for thumb target */}
         <Input
           id="num-answer"
           type="number"
@@ -170,12 +163,11 @@ export function AnswerArea({
           placeholder="Enter a number"
           value={current}
           disabled={disabled || locked}
+          className="h-12 text-center text-lg tabular-nums"
+          style={{ fontSize: "16px" }}
           onChange={(e) => {
             const raw = e.target.value
-            onChange({
-              type: "numerical",
-              value: raw === "" ? null : Number(raw),
-            })
+            onChange({ type: "numerical", value: raw === "" ? null : Number(raw) })
           }}
         />
       </div>
@@ -183,25 +175,20 @@ export function AnswerArea({
   }
 
   // subjective
-  const current =
-    answer && answer.type === "subjective" ? answer.value : ""
+  const current = answer && answer.type === "subjective" ? answer.value : ""
   return (
     <div className="grid gap-2">
-      <Label
-        htmlFor="subj-answer"
-        className="text-xs text-muted-foreground"
-      >
-        Your answer (this question is not auto-graded — the reference will be
-        shown after you submit)
+      <Label htmlFor="subj-answer" className="text-sm text-muted-foreground">
+        Your answer (not auto-graded — reference shown after submit)
       </Label>
       <Textarea
         id="subj-answer"
-        rows={5}
+        rows={4}
         value={current}
         disabled={disabled || locked}
-        onChange={(e) =>
-          onChange({ type: "subjective", value: e.target.value })
-        }
+        className="text-base"
+        style={{ fontSize: "16px" }}
+        onChange={(e) => onChange({ type: "subjective", value: e.target.value })}
       />
     </div>
   )

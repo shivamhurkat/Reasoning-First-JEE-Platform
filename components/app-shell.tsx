@@ -1,7 +1,6 @@
 "use client"
 
 import Link from "next/link"
-import { useState } from "react"
 import {
   BookOpen,
   Home,
@@ -13,14 +12,8 @@ import {
 
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet"
+import { BottomNav } from "@/components/ui/bottom-nav"
 import { SidebarNav, type NavItem } from "@/components/dashboard/sidebar-nav"
-import { MobileHeader } from "@/components/dashboard/mobile-header"
 
 export type AppShellProfile = {
   id: string
@@ -43,48 +36,33 @@ export function AppShell({
   profile: AppShellProfile
   children: React.ReactNode
 }) {
-  const [mobileOpen, setMobileOpen] = useState(false)
   const nav: NavItem[] =
     profile.role === "admin"
       ? [
           ...BASE_NAV,
-          { href: "/admin", label: "Admin", icon: ShieldCheck },
+          { href: "/admin/questions", label: "Admin", icon: ShieldCheck },
         ]
       : BASE_NAV
 
-  const sidebarContent = (
-    <SidebarBody
-      nav={nav}
-      profile={profile}
-      onNavigate={() => setMobileOpen(false)}
-    />
-  )
-
   return (
     <div className="flex min-h-screen bg-background">
-      {/* Desktop sidebar — hidden below lg */}
+      {/* ── Desktop sidebar — hidden below lg ── */}
       <aside className="hidden w-60 shrink-0 border-r bg-card lg:flex lg:flex-col">
-        {sidebarContent}
+        <SidebarBody nav={nav} profile={profile} />
       </aside>
 
+      {/* ── Main content area ── */}
       <div className="flex min-w-0 flex-1 flex-col">
-        {/* Mobile top bar — hidden at lg+ */}
-        <MobileHeader
-          profile={profile}
-          onMenuClick={() => setMobileOpen(true)}
-        />
-
-        <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-          <SheetContent side="left" className="w-72 p-0">
-            <SheetHeader className="sr-only">
-              <SheetTitle>Navigation</SheetTitle>
-            </SheetHeader>
-            {sidebarContent}
-          </SheetContent>
-        </Sheet>
-
-        <main className="min-w-0 flex-1 p-6">{children}</main>
+        <main className="min-w-0 flex-1 px-4 pb-24 pt-4 lg:p-6 lg:pb-6">
+          {/* Constrain to comfortable reading width */}
+          <div className="mx-auto max-w-2xl lg:max-w-6xl">
+            {children}
+          </div>
+        </main>
       </div>
+
+      {/* ── Mobile bottom nav — hidden at lg+ ── */}
+      <BottomNav role={profile.role} />
     </div>
   )
 }
@@ -108,7 +86,10 @@ function SidebarBody({
           onClick={onNavigate}
           className="text-base font-semibold tracking-tight transition-colors duration-150 hover:text-primary"
         >
-          Reasoning-First JEE
+          ReasonLab
+          <span className="ml-1.5 rounded-md bg-primary/10 px-1.5 py-0.5 text-xs font-semibold text-primary">
+            JEE
+          </span>
         </Link>
       </div>
       <Separator />

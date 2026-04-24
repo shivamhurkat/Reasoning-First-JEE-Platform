@@ -1,5 +1,66 @@
 # Reasoning-First JEE Platform
 
+## Design System
+
+### Audience & Device Baseline
+
+70%+ of students use budget Android phones (Redmi, Realme, Samsung M-series) at 360–400 px width on Chrome. All UI is **mobile-first**: design for 380 px, scale up to desktop. Desktop layout uses the sidebar (`lg:` breakpoint); mobile uses the bottom nav.
+
+### Color Tokens
+
+All tokens live in `app/globals.css` as CSS custom properties. Import token *names* from `lib/constants/design.ts`.
+
+| Token | Value (light) | Purpose |
+|---|---|---|
+| `--brand-primary` | `oklch(0.46 0.22 264)` — deep indigo | Primary buttons, active states, focus rings |
+| `--brand-primary-light` | `oklch(0.71 0.16 264)` | Hover tints |
+| `--brand-primary-dark` | `oklch(0.32 0.22 264)` | Pressed states |
+| `--accent-warm` | `oklch(0.79 0.18 55)` — amber | Streaks, XP, achievements |
+| `--subject-physics` | `oklch(0.55 0.18 225)` — sky | Physics subject accent |
+| `--subject-chemistry` | `oklch(0.52 0.15 162)` — emerald | Chemistry subject accent |
+| `--subject-math` | `oklch(0.48 0.20 295)` — violet | Mathematics subject accent |
+| `--success` | `oklch(0.55 0.15 145)` | Correct answer banners |
+| `--error` | `oklch(0.56 0.22 25)` | Wrong answer banners |
+| `--warning` | `oklch(0.79 0.18 80)` | Caution indicators |
+| `--info` | `oklch(0.55 0.15 250)` | Info callouts |
+
+`--primary` (used by all shadcn/base-ui components) is mapped to `--brand-primary`.
+
+### Utility Classes
+
+| Class | Use on | Notes |
+|---|---|---|
+| `.glass-card` | **Fixed/sticky elements only** (bottom nav, session header, sticky bars) | Uses `backdrop-filter: blur` — NEVER on scrollable lists (kills perf on Redmi/Realme) |
+| `.card-elevated` | Content cards | White bg, subtle shadow, hover lift — NO backdrop-filter |
+| `.no-scrollbar` | Horizontal scroll containers | Hides scrollbar visually while keeping functionality |
+
+### Component Patterns
+
+**Bottom Navigation** (`components/ui/bottom-nav.tsx`): Fixed, mobile-only (`lg:hidden`), 5 items, "More" opens a Sheet. Auto-hides on practice session pages (covered by the fullscreen overlay anyway).
+
+**Practice session layout**: `fixed inset-0 z-40` overlay (see `session/[sessionId]/layout.tsx`) covers the entire viewport including the bottom nav. The session header uses `.glass-card` (fixed element ✓). The result panel's action bar uses `bg-background` only (scrollable page ✗ no backdrop-filter).
+
+**Approach buttons**: 2-column grid on mobile (Skip spans full width), 5-column on `md+`.
+
+**Solution tabs**: Horizontal scroll (`overflow-x-auto no-scrollbar`) on mobile — 6 tabs don't fit 380 px; tab triggers are `shrink-0 whitespace-nowrap`.
+
+### Mobile-first Rules
+
+1. **Touch targets** — minimum `min-h-[44px]` or `min-h-[48px]` on every tappable element.
+2. **Input font-size** — `font-size: max(16px, 1em)` globally (in `@layer base`) prevents iOS Safari from zooming on focus.
+3. **No `backdrop-filter` on scroll** — only on `position: fixed` or `position: sticky` elements.
+4. **No horizontal overflow** — except `.no-scrollbar` containers (solution tabs, weak-area chips).
+5. **CSS transitions only** — 150–200 ms, no JS animation libraries (Framer Motion etc.).
+6. **Images** — always `loading="lazy"` on question and solution images.
+7. **Bottom nav padding** — main content has `pb-24 lg:pb-6` so content clears the 64 px nav bar plus safe-area inset.
+
+### Performance Constraints (Budget Phones)
+
+- `backdrop-filter` on even one scrolling element causes jank on Snapdragon 4xx/6xx.
+- Avoid `box-shadow` on list items that scroll (use `border` only).
+- Use CSS `transition` + `transform` instead of layout-triggering properties.
+- All question/solution images need `loading="lazy"`.
+
 ## Stack
 
 - **Framework**: Next.js 14 (App Router)

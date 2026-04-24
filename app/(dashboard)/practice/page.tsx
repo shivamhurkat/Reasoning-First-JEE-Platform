@@ -1,6 +1,5 @@
 import Link from "next/link"
 import {
-  ArrowRight,
   Atom,
   FlaskConical,
   History,
@@ -20,30 +19,26 @@ import { PracticeToast } from "@/components/practice/practice-toast"
 
 export const dynamic = "force-dynamic"
 
-const SUBJECT_THEME: Record<
-  string,
-  { icon: LucideIcon; gradient: string; iconBg: string; accent: string }
-> = {
+type SubjectTheme = { icon: LucideIcon; iconBg: string; border: string; label: string }
+
+const SUBJECT_THEME: Record<string, SubjectTheme> = {
   physics: {
     icon: Atom,
-    gradient:
-      "from-sky-500/15 via-blue-500/10 to-transparent dark:from-sky-500/10 dark:via-blue-500/5",
-    iconBg: "bg-sky-500/15 text-sky-600 dark:text-sky-300",
-    accent: "hover:border-sky-500/50",
+    iconBg: "bg-sky-500/15 text-sky-600",
+    border: "border-l-sky-500",
+    label: "Physics",
   },
   chemistry: {
     icon: FlaskConical,
-    gradient:
-      "from-emerald-500/15 via-teal-500/10 to-transparent dark:from-emerald-500/10 dark:via-teal-500/5",
-    iconBg: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-300",
-    accent: "hover:border-emerald-500/50",
+    iconBg: "bg-emerald-500/15 text-emerald-600",
+    border: "border-l-emerald-500",
+    label: "Chemistry",
   },
   mathematics: {
     icon: Sigma,
-    gradient:
-      "from-violet-500/15 via-fuchsia-500/10 to-transparent dark:from-violet-500/10 dark:via-fuchsia-500/5",
-    iconBg: "bg-violet-500/15 text-violet-600 dark:text-violet-300",
-    accent: "hover:border-violet-500/50",
+    iconBg: "bg-violet-500/15 text-violet-600",
+    border: "border-l-violet-500",
+    label: "Mathematics",
   },
 }
 
@@ -53,19 +48,14 @@ export default async function PracticeLandingPage({
   searchParams: { error?: string }
 }) {
   const supabase = createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
+  const { data: { user } } = await supabase.auth.getUser()
   const userId = user?.id ?? ""
 
   const [subjects, activeSessionRes] = await Promise.all([
     getSubjectsWithCounts(userId),
     supabase
       .from("practice_sessions")
-      .select(
-        "id, started_at, topic_id, chapter_id, subject_id, topics(name), chapters(name), subjects(name)"
-      )
+      .select("id, started_at, topic_id, chapter_id, subject_id, topics(name), chapters(name), subjects(name)")
       .eq("user_id", userId)
       .is("ended_at", null)
       .order("started_at", { ascending: false })
@@ -73,35 +63,28 @@ export default async function PracticeLandingPage({
       .maybeSingle(),
   ])
 
-  const active = activeSessionRes.data as unknown as
-    | {
-        id: string
-        started_at: string
-        topics?: { name?: string } | null
-        chapters?: { name?: string } | null
-        subjects?: { name?: string } | null
-      }
-    | null
-    | undefined
+  const active = activeSessionRes.data as unknown as {
+    id: string
+    started_at: string
+    topics?: { name?: string } | null
+    chapters?: { name?: string } | null
+    subjects?: { name?: string } | null
+  } | null | undefined
 
   const activeScope =
-    active?.topics?.name ||
-    active?.chapters?.name ||
-    active?.subjects?.name ||
-    "Mixed practice"
+    active?.topics?.name || active?.chapters?.name || active?.subjects?.name || "Mixed practice"
 
   return (
-    <div className="grid gap-8">
+    <div className="grid gap-6">
       <PracticeToast error={searchParams.error} />
 
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Practice</h1>
-        <p className="text-sm text-muted-foreground">
-          Choose a subject to begin.
-        </p>
+        <h1 className="text-2xl font-bold tracking-tight">Practice</h1>
+        <p className="text-sm text-muted-foreground">Choose a subject to begin.</p>
       </div>
 
-      <section className="grid gap-4 md:grid-cols-3">
+      {/* ── Subject cards: stacked on mobile, 3-col on desktop ── */}
+      <section className="grid gap-3 md:grid-cols-3">
         {subjects.map((s) => {
           const theme = SUBJECT_THEME[s.slug] ?? SUBJECT_THEME.physics
           const Icon = theme.icon
@@ -110,124 +93,93 @@ export default async function PracticeLandingPage({
               key={s.id}
               href={`/practice/${s.slug}`}
               className={cn(
-                "group relative overflow-hidden rounded-xl border bg-card p-5 shadow-sm transition-all",
-                theme.accent,
-                "hover:shadow-md"
+                "group flex min-h-[80px] items-center gap-4 rounded-xl border-l-4 border border-l-4 bg-card px-4 py-4",
+                "transition-all duration-150 hover:shadow-md hover:border-opacity-80",
+                theme.border
               )}
             >
-              <div
-                aria-hidden
-                className={cn(
-                  "pointer-events-none absolute inset-0 bg-gradient-to-br",
-                  theme.gradient
-                )}
-              />
-              <div className="relative flex items-start justify-between">
-                <div
-                  className={cn(
-                    "inline-flex size-10 items-center justify-center rounded-lg",
-                    theme.iconBg
-                  )}
-                >
-                  <Icon className="size-5" />
-                </div>
-                <ArrowRight className="size-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+              <div className={cn("inline-flex size-11 shrink-0 items-center justify-center rounded-xl", theme.iconBg)}>
+                <Icon className="size-5" />
               </div>
-              <div className="relative mt-4">
-                <h3 className="text-lg font-semibold">{s.name}</h3>
-                <p className="mt-0.5 text-xs text-muted-foreground">
-                  {s.questionCount} question
-                  {s.questionCount === 1 ? "" : "s"} available
+              <div className="min-w-0 flex-1">
+                <h3 className="font-semibold">{s.name}</h3>
+                <p className="text-xs text-muted-foreground">
+                  {s.questionCount} question{s.questionCount !== 1 ? "s" : ""}
                 </p>
               </div>
-              <div className="relative mt-4 flex items-center gap-4 text-xs">
-                <div>
-                  <div className="font-medium text-foreground">
-                    {s.userAccuracy != null ? `${s.userAccuracy}%` : "—"}
-                  </div>
-                  <div className="text-muted-foreground">
-                    {s.userAccuracy != null ? "accuracy" : "not started"}
-                  </div>
-                </div>
-                <div>
-                  <div className="font-medium text-foreground">
-                    {s.userAttempted}
-                  </div>
-                  <div className="text-muted-foreground">attempted</div>
-                </div>
-              </div>
+              {/* Accuracy pill */}
+              {s.userAccuracy != null ? (
+                <Badge
+                  variant="secondary"
+                  className={cn(
+                    s.userAccuracy >= 70
+                      ? "bg-emerald-500/15 text-emerald-700"
+                      : s.userAccuracy >= 40
+                        ? "bg-amber-500/15 text-amber-700"
+                        : "bg-red-500/15 text-red-700"
+                  )}
+                >
+                  {s.userAccuracy}%
+                </Badge>
+              ) : (
+                <Badge variant="outline" className="text-xs">New</Badge>
+              )}
             </Link>
           )
         })}
       </section>
 
-      <section className="grid gap-3">
-        <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+      {/* ── Quick actions ── */}
+      <section>
+        <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           Quick practice
         </h2>
-        <div className="grid gap-3 md:grid-cols-2">
+        <div className="grid gap-3 sm:grid-cols-2">
           {active ? (
             <Link
               href={`/practice/session/${active.id}`}
-              className="group rounded-xl border bg-card p-5 shadow-sm transition-all hover:border-primary/40 hover:shadow-md"
+              className="group flex min-h-[72px] items-center gap-3 rounded-xl border bg-card px-4 py-3 transition-all hover:border-primary/40 hover:shadow-sm"
             >
-              <div className="flex items-start gap-3">
-                <div className="inline-flex size-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                  <History className="size-5" />
+              <div className="inline-flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                <History className="size-5" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <span className="font-medium text-sm">Resume session</span>
+                  <Badge variant="outline" className="text-xs">In progress</Badge>
                 </div>
-                <div className="flex-1">
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-medium">
-                      Continue where you left off
-                    </h3>
-                    <Badge variant="outline">In progress</Badge>
-                  </div>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    {activeScope}
-                  </p>
-                </div>
-                <ArrowRight className="mt-1 size-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+                <p className="text-xs text-muted-foreground">{activeScope}</p>
               </div>
             </Link>
           ) : (
             <Card className="opacity-60">
-              <CardContent className="flex items-start gap-3 p-5">
-                <div className="inline-flex size-10 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+              <CardContent className="flex min-h-[72px] items-center gap-3 px-4 py-3">
+                <div className="inline-flex size-10 shrink-0 items-center justify-center rounded-xl bg-muted text-muted-foreground">
                   <History className="size-5" />
                 </div>
-                <div className="flex-1">
-                  <h3 className="font-medium text-muted-foreground">
-                    No active session
-                  </h3>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    Start one to see resume here.
-                  </p>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">No active session</p>
+                  <p className="text-xs text-muted-foreground">Start one above</p>
                 </div>
               </CardContent>
             </Card>
           )}
 
-          <div className="group rounded-xl border bg-card p-5 shadow-sm transition-all hover:border-primary/40 hover:shadow-md">
-            <div className="flex items-start gap-3">
-              <div className="inline-flex size-10 items-center justify-center rounded-lg bg-amber-500/15 text-amber-600 dark:text-amber-300">
-                <Shuffle className="size-5" />
+          <div className="flex min-h-[72px] items-center gap-3 rounded-xl border bg-card px-4 py-3">
+            <div className="inline-flex size-10 shrink-0 items-center justify-center rounded-xl bg-accent-warm/15 text-amber-600">
+              <Shuffle className="size-5" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2">
+                <span className="font-medium text-sm">Surprise me</span>
+                <Badge variant="outline" className="gap-1 text-xs">
+                  <Sparkles className="size-3" /> mixed
+                </Badge>
               </div>
-              <div className="flex-1">
-                <div className="flex items-center gap-2">
-                  <h3 className="font-medium">Surprise me</h3>
-                  <Badge variant="outline" className="gap-1">
-                    <Sparkles className="size-3" /> mixed
-                  </Badge>
-                </div>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Random questions across every subject.
-                </p>
-                <div className="mt-3">
-                  <StartSessionForm scope="mixed">
-                    Start mixed session
-                  </StartSessionForm>
-                </div>
-              </div>
+              <p className="mb-2 text-xs text-muted-foreground">Random questions, all subjects</p>
+              <StartSessionForm scope="mixed" size="sm">
+                Start mixed session
+              </StartSessionForm>
             </div>
           </div>
         </div>
