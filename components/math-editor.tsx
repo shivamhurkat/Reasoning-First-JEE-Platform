@@ -8,24 +8,141 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { MathPreview } from "@/components/math-preview"
 
+/**
+ * A snippet describes one toolbar button. Two patterns:
+ *
+ * 1. `wrap` — when the user has text selected, wrap it with `before` + selection + `after`.
+ *    If nothing is selected, insert `before` + `placeholder` + `after` and leave the
+ *    placeholder selected so the user can type over it.
+ *
+ * 2. `template` — insert a fixed multi-line template. `cursor` says where the caret should
+ *    land (character offset from start of inserted text).
+ */
 type Snippet = {
+  id: string
   label: string
-  insert: string
-  /** Where to place the cursor after insert, relative to start of inserted text. */
-  cursorOffset?: number
-  /** Number of characters to select after insert (placeholder selection). */
-  selectLen?: number
-}
+  hint: string
+} & (
+  | {
+      kind: "wrap"
+      before: string
+      after: string
+      placeholder: string
+    }
+  | {
+      kind: "template"
+      text: string
+      cursor: number
+      selectLen?: number
+    }
+)
 
 const SNIPPETS: Snippet[] = [
-  { label: "Inline $x$", insert: "$x$", cursorOffset: 1, selectLen: 1 },
-  { label: "Block $$", insert: "$$\n\n$$", cursorOffset: 3 },
-  { label: "Fraction", insert: "\\frac{a}{b}", cursorOffset: 6, selectLen: 1 },
-  { label: "Sqrt", insert: "\\sqrt{x}", cursorOffset: 6, selectLen: 1 },
-  { label: "Power", insert: "x^{n}", cursorOffset: 3, selectLen: 1 },
-  { label: "Subscript", insert: "x_{n}", cursorOffset: 3, selectLen: 1 },
-  { label: "Integral", insert: "\\int", cursorOffset: 4 },
-  { label: "Sum", insert: "\\sum", cursorOffset: 4 },
+  {
+    id: "inline",
+    kind: "wrap",
+    label: "Inline $…$",
+    hint: "Inline math. Wraps your selection in $...$",
+    before: "$",
+    after: "$",
+    placeholder: "x",
+  },
+  {
+    id: "block",
+    kind: "template",
+    label: "Block $$…$$",
+    hint: "Display math on its own line",
+    text: "\n$$\n\n$$\n",
+    cursor: 4,
+  },
+  {
+    id: "frac",
+    kind: "wrap",
+    label: "a/b",
+    hint: "Fraction \\frac{a}{b}",
+    before: "\\frac{",
+    after: "}{b}",
+    placeholder: "a",
+  },
+  {
+    id: "sqrt",
+    kind: "wrap",
+    label: "√",
+    hint: "Square root \\sqrt{x}",
+    before: "\\sqrt{",
+    after: "}",
+    placeholder: "x",
+  },
+  {
+    id: "pow",
+    kind: "wrap",
+    label: "xⁿ",
+    hint: "Power x^{n}",
+    before: "",
+    after: "^{n}",
+    placeholder: "x",
+  },
+  {
+    id: "sub",
+    kind: "wrap",
+    label: "xₙ",
+    hint: "Subscript x_{n}",
+    before: "",
+    after: "_{n}",
+    placeholder: "x",
+  },
+  {
+    id: "int",
+    kind: "template",
+    label: "∫",
+    hint: "Definite integral",
+    text: "\\int_{a}^{b} f(x)\\,dx",
+    cursor: 6, // caret inside {a}
+    selectLen: 1,
+  },
+  {
+    id: "sum",
+    kind: "template",
+    label: "Σ",
+    hint: "Summation",
+    text: "\\sum_{n=1}^{\\infty}",
+    cursor: 6, // inside first {}
+    selectLen: 3,
+  },
+  {
+    id: "lim",
+    kind: "template",
+    label: "lim",
+    hint: "Limit",
+    text: "\\lim_{x \\to 0}",
+    cursor: 6,
+    selectLen: 1,
+  },
+  {
+    id: "vec",
+    kind: "wrap",
+    label: "→v",
+    hint: "Vector \\vec{v}",
+    before: "\\vec{",
+    after: "}",
+    placeholder: "v",
+  },
+  {
+    id: "deg",
+    kind: "template",
+    label: "°",
+    hint: "Degree symbol",
+    text: "^{\\circ}",
+    cursor: 8,
+  },
+  {
+    id: "pm",
+    kind: "template",
+    label: "±",
+    hint: "Plus/minus",
+    text: "\\pm ",
+    cursor: 4,
+  },
 ]
 
 export type MathEditorProps = {
@@ -38,10 +155,6 @@ export type MathEditorProps = {
   name?: string
   onBlur?: () => void
   disabled?: boolean
-  /**
-   * Compact mode uses a smaller toolbar and shrinks the preview — intended
-   * for nested editors (e.g. MCQ options).
-   */
   compact?: boolean
   className?: string
 }
@@ -51,7 +164,7 @@ export function MathEditor({
   onChange,
   label,
   placeholder,
-  minHeight = 120,
+  minHeight = 140,
   id,
   name,
   onBlur,
@@ -61,55 +174,84 @@ export function MathEditor({
 }: MathEditorProps) {
   const taRef = useRef<HTMLTextAreaElement>(null)
 
-  const insertAtCursor = (snippet: Snippet) => {
+  const applySnippet = (s: Snippet) => {
     const ta = taRef.current
-    if (!ta) {
-      onChange(value + snippet.insert)
-      return
+    const start = ta?.selectionStart ?? value.length
+    const end = ta?.selectionEnd ?? value.length
+    const selected = value.slice(start, end)
+
+    let insert = ""
+    let caret = start
+    let selEnd = start
+
+    if (s.kind === "wrap") {
+      const body = selected.length > 0 ? selected : s.placeholder
+      insert = s.before + body + s.after
+      // Highlight the body so the user can immediately type over it.
+      caret = start + s.before.length
+      selEnd = caret + body.length
+    } else {
+      insert = s.text
+      caret = start + s.cursor
+      selEnd = caret + (s.selectLen ?? 0)
     }
-    const start = ta.selectionStart ?? value.length
-    const end = ta.selectionEnd ?? value.length
-    const next = value.slice(0, start) + snippet.insert + value.slice(end)
+
+    const next = value.slice(0, start) + insert + value.slice(end)
     onChange(next)
-    // Restore focus + place cursor/selection inside the snippet on next tick.
     requestAnimationFrame(() => {
-      ta.focus()
-      const caret = start + (snippet.cursorOffset ?? snippet.insert.length)
-      const selEnd = caret + (snippet.selectLen ?? 0)
-      ta.setSelectionRange(caret, selEnd)
+      const ta2 = taRef.current
+      if (!ta2) return
+      ta2.focus()
+      ta2.setSelectionRange(caret, selEnd)
     })
+  }
+
+  // Ctrl/Cmd+M toggles an inline math wrapper around the current selection.
+  const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "m") {
+      e.preventDefault()
+      applySnippet(SNIPPETS[0]) // inline
+    }
   }
 
   return (
     <div className={cn("grid gap-2", className)}>
       {label ? <Label htmlFor={id}>{label}</Label> : null}
 
-      <div className="flex flex-wrap gap-1 rounded-md border bg-muted/30 p-1">
+      <div className="flex flex-wrap items-center gap-1 rounded-md border bg-muted/40 p-1">
         {SNIPPETS.map((s) => (
           <Button
-            key={s.label}
+            key={s.id}
             type="button"
             variant="ghost"
             size={compact ? "xs" : "sm"}
             disabled={disabled}
-            onClick={() => insertAtCursor(s)}
-            className="font-mono"
+            onClick={() => applySnippet(s)}
+            title={s.hint}
+            className="font-medium"
           >
             {s.label}
           </Button>
         ))}
+        <span className="ml-auto hidden pr-1.5 text-[10px] text-muted-foreground sm:inline">
+          ⌘M wraps selection in $…$
+        </span>
       </div>
 
-      <div className="grid gap-3 md:grid-cols-2">
+      <div className={cn("grid gap-3", compact ? "" : "md:grid-cols-2")}>
         <Textarea
           ref={taRef}
           id={id}
           name={name}
           value={value}
-          placeholder={placeholder}
+          placeholder={
+            placeholder ??
+            "Type here. Use $x^2$ for inline math, $$…$$ for a block. Toolbar buttons wrap your selection."
+          }
           disabled={disabled}
           onChange={(e) => onChange(e.target.value)}
           onBlur={onBlur}
+          onKeyDown={onKeyDown}
           spellCheck={false}
           className="font-mono text-sm leading-relaxed"
           style={{ minHeight }}
@@ -119,9 +261,9 @@ export function MathEditor({
           style={{ minHeight }}
         >
           {value.trim() === "" ? (
-            <p className="text-sm text-muted-foreground">
-              Live preview — write LaTeX inside <code>$...$</code> or{" "}
-              <code>$$...$$</code>.
+            <p className="text-xs text-muted-foreground">
+              Preview appears here.{" "}
+              <span className="font-mono">$a^2 + b^2 = c^2$</span> renders as math.
             </p>
           ) : (
             <MathPreview value={value} />

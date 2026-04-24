@@ -34,13 +34,21 @@ export default async function AdminSubjectsPage() {
       })),
   }))
 
+  const topicCount = sorted.reduce(
+    (n, s) => n + s.chapters.reduce((m, c) => m + c.topics.length, 0),
+    0
+  )
+  const chapterCount = sorted.reduce((n, s) => n + s.chapters.length, 0)
+
   return (
     <div className="grid gap-6">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Curriculum</h1>
         <p className="text-sm text-muted-foreground">
-          Manage subjects, chapters, and topics. Topics anchor every question
-          and solution in the platform.
+          {sorted.length} subject{sorted.length === 1 ? "" : "s"} ·{" "}
+          {chapterCount} chapter{chapterCount === 1 ? "" : "s"} · {topicCount}{" "}
+          topic{topicCount === 1 ? "" : "s"}. Topics anchor every question and
+          solution.
         </p>
       </div>
 

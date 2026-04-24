@@ -15,7 +15,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
-import { Slider } from "@/components/ui/slider"
+import { DifficultyPicker } from "@/components/admin/difficulty-picker"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
   Select,
@@ -168,7 +168,6 @@ const formSchema = z
 type FormValues = z.infer<typeof formSchema>
 
 const OPTION_LETTERS = ["a", "b", "c", "d", "e", "f"] as const
-const DIFFICULTY_LABELS = ["Very Easy", "Easy", "Medium", "Hard", "Very Hard"]
 
 // ---------- Component ----------
 
@@ -749,30 +748,14 @@ export function QuestionForm({
         </CardHeader>
         <CardContent className="grid gap-4">
           <div className="grid gap-2">
-            <div className="flex items-center justify-between">
-              <Label>Difficulty</Label>
-              <Controller
-                control={control}
-                name="difficulty"
-                render={({ field }) => (
-                  <Badge variant="secondary">
-                    {field.value} · {DIFFICULTY_LABELS[field.value - 1]}
-                  </Badge>
-                )}
-              />
-            </div>
+            <Label>Difficulty</Label>
             <Controller
               control={control}
               name="difficulty"
               render={({ field }) => (
-                <Slider
-                  min={1}
-                  max={5}
-                  step={1}
-                  value={[field.value]}
-                  onValueChange={(v) =>
-                    field.onChange(Array.isArray(v) ? (v[0] ?? 1) : v)
-                  }
+                <DifficultyPicker
+                  value={field.value}
+                  onChange={field.onChange}
                 />
               )}
             />

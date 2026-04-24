@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Slider } from "@/components/ui/slider"
+import { DifficultyPicker } from "@/components/admin/difficulty-picker"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
   Dialog,
@@ -577,20 +577,11 @@ function SolutionDialog({
                 control={form.control}
                 name="difficulty_to_execute"
                 render={({ field }) => (
-                  <div>
-                    <Slider
-                      min={1}
-                      max={5}
-                      step={1}
-                      value={[field.value]}
-                      onValueChange={(v) =>
-                        field.onChange(Array.isArray(v) ? (v[0] ?? 1) : v)
-                      }
-                    />
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      Level {field.value}
-                    </p>
-                  </div>
+                  <DifficultyPicker
+                    value={field.value}
+                    onChange={field.onChange}
+                    size="sm"
+                  />
                 )}
               />
             </div>

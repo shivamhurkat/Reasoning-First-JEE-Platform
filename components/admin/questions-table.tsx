@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { useMemo, useState, useTransition } from "react"
+import { useMemo, useOptimistic, useState, useTransition } from "react"
 import { formatDistanceToNowStrict } from "date-fns"
 import { toast } from "sonner"
 import {
@@ -111,8 +111,30 @@ export function QuestionsTable({
   >(null)
   const [pending, startTransition] = useTransition()
 
-  const allChecked = rows.length > 0 && rows.every((r) => selected.has(r.id))
-  const someChecked = rows.some((r) => selected.has(r.id))
+  // Optimistic view: apply pending status/delete changes locally so the UI
+  // updates the instant the user clicks, without waiting for the server
+  // roundtrip + revalidation.
+  type Patch =
+    | { kind: "status"; ids: string[]; status: QuestionRow["status"] }
+    | { kind: "delete"; ids: string[] }
+  const [optimisticRows, applyPatch] = useOptimistic<QuestionRow[], Patch>(
+    rows,
+    (current, patch) => {
+      if (patch.kind === "delete") {
+        const del = new Set(patch.ids)
+        return current.filter((r) => !del.has(r.id))
+      }
+      const ids = new Set(patch.ids)
+      return current.map((r) =>
+        ids.has(r.id) ? { ...r, status: patch.status } : r
+      )
+    }
+  )
+  const displayRows = optimisticRows
+
+  const allChecked =
+    displayRows.length > 0 && displayRows.every((r) => selected.has(r.id))
+  const someChecked = displayRows.some((r) => selected.has(r.id))
 
   const toggleRow = (id: string) => {
     setSelected((prev) => {
@@ -150,10 +172,16 @@ export function QuestionsTable({
     status: "published" | "archived" | null,
     deleting = false
   ) => {
+    const ids = selectedIds
     startTransition(async () => {
+      if (deleting) {
+        applyPatch({ kind: "delete", ids })
+      } else if (status) {
+        applyPatch({ kind: "status", ids, status })
+      }
       const res = deleting
-        ? await bulkDelete(selectedIds)
-        : await bulkUpdateStatus(selectedIds, status!)
+        ? await bulkDelete(ids)
+        : await bulkUpdateStatus(ids, status!)
       if (!res.ok) {
         toast.error(res.error)
         return
@@ -170,6 +198,7 @@ export function QuestionsTable({
 
   const runDeleteOne = (id: string) => {
     startTransition(async () => {
+      applyPatch({ kind: "delete", ids: [id] })
       const res = await deleteQuestion(id)
       if (!res.ok) {
         toast.error(res.error)
@@ -197,14 +226,15 @@ export function QuestionsTable({
     })
   }
 
-  const runArchive = (id: string) => {
+  const runStatus = (id: string, status: "published" | "archived") => {
     startTransition(async () => {
-      const res = await bulkUpdateStatus([id], "archived")
+      applyPatch({ kind: "status", ids: [id], status })
+      const res = await bulkUpdateStatus([id], status)
       if (!res.ok) {
         toast.error(res.error)
         return
       }
-      toast.success("Archived")
+      toast.success(status === "published" ? "Published" : "Archived")
     })
   }
 
@@ -273,14 +303,14 @@ export function QuestionsTable({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {rows.length === 0 ? (
+            {displayRows.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={9} className="py-10 text-center text-sm text-muted-foreground">
                   No questions match the current filters.
                 </TableCell>
               </TableRow>
             ) : (
-              rows.map((r) => (
+              displayRows.map((r) => (
                 <TableRow
                   key={r.id}
                   data-state={selected.has(r.id) ? "selected" : undefined}
@@ -336,31 +366,46 @@ export function QuestionsTable({
                   <TableCell>
                     <DropdownMenu>
                       <DropdownMenuTrigger
-                        render={<Button variant="ghost" size="icon-sm" aria-label="Actions" />}
-                      >
-                        <MoreHorizontal />
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
+                        render={
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            aria-label="Row actions"
+                          >
+                            <MoreHorizontal />
+                          </Button>
+                        }
+                      />
+                      <DropdownMenuContent align="end" className="w-52">
                         <DropdownMenuItem
                           render={<Link href={`/admin/questions/${r.id}/edit`} />}
                         >
-                          <Pencil /> Edit
+                          <Pencil /> Edit question
                         </DropdownMenuItem>
                         <DropdownMenuItem
                           render={<Link href={`/admin/questions/${r.id}/solutions`} />}
                         >
                           <Wrench /> Manage solutions
                         </DropdownMenuItem>
-                        <DropdownMenuItem onSelect={() => runDuplicate(r.id)}>
+                        <DropdownMenuItem onClick={() => runDuplicate(r.id)}>
                           <CopyPlus /> Duplicate
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem onSelect={() => runArchive(r.id)}>
-                          <Archive /> Archive
-                        </DropdownMenuItem>
+                        {r.status !== "published" ? (
+                          <DropdownMenuItem
+                            onClick={() => runStatus(r.id, "published")}
+                          >
+                            <Send /> Publish
+                          </DropdownMenuItem>
+                        ) : null}
+                        {r.status !== "archived" ? (
+                          <DropdownMenuItem onClick={() => runStatus(r.id, "archived")}>
+                            <Archive /> Archive
+                          </DropdownMenuItem>
+                        ) : null}
                         <DropdownMenuItem
-                          onSelect={() => setConfirm({ kind: "delete-one", id: r.id })}
-                          className="text-destructive focus:text-destructive"
+                          variant="destructive"
+                          onClick={() => setConfirm({ kind: "delete-one", id: r.id })}
                         >
                           <Trash2 /> Delete
                         </DropdownMenuItem>

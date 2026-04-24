@@ -138,7 +138,7 @@ export default async function AdminQuestionsPage({
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Questions</h1>
           <p className="text-sm text-muted-foreground">
-            Content library. Filter, triage, and publish.
+            {total} total · filter, triage, and publish.
           </p>
         </div>
         <Button render={<Link href="/admin/questions/new" />}>
@@ -147,16 +147,23 @@ export default async function AdminQuestionsPage({
       </div>
 
       <div className="grid grid-cols-3 gap-3">
-        <StatusCard label="Draft" value={statusCounts.draft} tone="muted" />
+        <StatusCard
+          label="Draft"
+          value={statusCounts.draft}
+          tone="muted"
+          href="/admin/questions?status=draft"
+        />
         <StatusCard
           label="Published"
           value={statusCounts.published}
           tone="primary"
+          href="/admin/questions?status=published"
         />
         <StatusCard
           label="Flagged"
           value={statusCounts.flagged}
           tone="destructive"
+          href="/admin/questions?status=flagged"
         />
       </div>
 
@@ -187,25 +194,29 @@ function StatusCard({
   label,
   value,
   tone,
+  href,
 }: {
   label: string
   value: number
   tone: "muted" | "primary" | "destructive"
+  href: string
 }) {
   const toneClass =
     tone === "primary"
-      ? "text-primary"
+      ? "text-emerald-600"
       : tone === "destructive"
         ? "text-destructive"
         : "text-muted-foreground"
   return (
-    <Card>
-      <CardContent className="p-4">
-        <p className="text-xs uppercase tracking-wide text-muted-foreground">
-          {label}
-        </p>
-        <p className={`mt-1 text-2xl font-semibold ${toneClass}`}>{value}</p>
-      </CardContent>
-    </Card>
+    <Link href={href}>
+      <Card className="transition-all hover:border-primary/40 hover:shadow-sm">
+        <CardContent className="p-4">
+          <p className="text-xs uppercase tracking-wide text-muted-foreground">
+            {label}
+          </p>
+          <p className={`mt-1 text-2xl font-semibold ${toneClass}`}>{value}</p>
+        </CardContent>
+      </Card>
+    </Link>
   )
 }
