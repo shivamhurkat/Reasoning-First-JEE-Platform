@@ -57,7 +57,7 @@ const payloadSchema = z.object({
   when_not_to_use: z.string().optional().nullable(),
   prerequisites: z.string().optional().nullable(),
   difficulty_to_execute: z.number().int().min(1).max(5).optional().nullable(),
-  status: z.enum(["draft", "published", "ai_generated_unverified", "flagged"]),
+  status: z.enum(["draft", "published", "ai_generated_unverified", "flagged"]).default("published"),
 })
 
 export type SolutionInput = z.infer<typeof payloadSchema>

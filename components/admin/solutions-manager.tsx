@@ -501,7 +501,7 @@ function SolutionForm({
     when_not_to_use: initial?.when_not_to_use ?? "",
     prerequisites: initial?.prerequisites ?? "",
     difficulty_to_execute: initial?.difficulty_to_execute ?? 3,
-    status: initial?.status ?? "draft",
+    status: initial?.status ?? "published",
   }
 
   const form = useForm<FormValues>({
