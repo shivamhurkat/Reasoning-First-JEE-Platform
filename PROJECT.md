@@ -40,9 +40,7 @@ All tokens live in `app/globals.css` as CSS custom properties. Import token *nam
 
 **Practice session layout**: `fixed inset-0 z-40` overlay (see `session/[sessionId]/layout.tsx`) covers the entire viewport including the bottom nav. The session header uses `.glass-card` (fixed element ✓). The result panel's action bar uses `bg-background` only (scrollable page ✗ no backdrop-filter).
 
-**Approach buttons**: 2-column grid on mobile (Skip spans full width), 5-column on `md+`.
-
-**Solution tabs**: Horizontal scroll (`overflow-x-auto no-scrollbar`) on mobile — 6 tabs don't fit 380 px; tab triggers are `shrink-0 whitespace-nowrap`.
+**Solution tabs**: Two tabs — "Ideal Solution" and "Shortcut". If only one solution type is available, no tabs are shown. If none, shows "Solution coming soon". Tab triggers use `shrink-0 whitespace-nowrap`.
 
 ### Mobile-first Rules
 
@@ -548,54 +546,34 @@ the way.
 ### Session state machine (client-side)
 
 ```
-   ┌─────────────────────┐
-   │ approach_selection  │  ← question visible, answer area hidden
-   └──────────┬──────────┘
-              │ user picks 1 of 5 approaches (1–5 hotkeys)
-              ├──────────────────────────────┐
-              ▼                              ▼
-     ┌─────────────────┐              ┌──────────────┐
-     │    solving      │              │ submitted    │ ← reached directly on Skip
-     └────────┬────────┘              └──────┬───────┘
-              │ Submit (Enter)               │
-              ▼                              │
-     ┌─────────────────┐                     │
-     │    submitted    │◄────────────────────┘
-     └────────┬────────┘
-              │ Next question  │  End session
-              ▼                 ▼
-      (loads next, resets) (→ /summary page)
+   ┌─────────────────┐
+   │    solving      │  ← question loads, answer area immediately visible
+   └────────┬────────┘
+            │ Submit (Enter) │ "Skip this question" link
+            ▼
+   ┌─────────────────┐
+   │    submitted    │
+   └────────┬────────┘
+            │ Next question  │  End session
+            ▼                 ▼
+    (loads next, resets) (→ /summary page)
 ```
 
 All transitions are client React state. The database is the source of
 truth for session existence + attempts; UI state is ephemeral.
 
-### The approach mechanic (why)
+On skip: attempt is recorded with `chosen_approach='skip'`, `answer=null`, `is_correct=false`.
+Default approach for all non-skip submits is `'full_solve'`.
 
-Most students learn to execute one way and then plateau. We want them to
-become fluent in **multiple solution classes** for the same problem. By
-forcing a named commitment before the answer reveal, we:
+### The approach mechanic
 
-1. Record *how* they approach each question, not just whether they were
-   right — this drives future coaching.
-2. Make the "Your approach" tab on the result screen a teachable moment:
-   they see their approach side-by-side with four others that could have
-   worked better or faster.
-3. Penalise no behaviour. Picking "Skip" is fully respected — the result
-   screen opens with "No problem — here's how to approach this" and the
-   student still sees all solution tabs.
+The approach selection step has been removed from the student-facing flow to
+reduce friction. Students now see the question and answer area immediately.
 
-The five approaches map to DB `practice_attempts.chosen_approach` and to
-the solution-type taxonomy via `APPROACH_TO_SOLUTION` (see
-`lib/constants/practice.ts`):
-
-| Approach | Highlighted solution tab |
-| --- | --- |
-| Full Solve | Standard |
-| Elimination | Elimination |
-| Pattern Recognition | Pattern |
-| Shortcut / Trick | Shortcut |
-| Skip | Standard (default fallback) |
+- All non-skip attempts are recorded as `chosen_approach = 'full_solve'`.
+- A "Skip this question" text link below the submit button lets students skip
+  without answering; recorded as `chosen_approach = 'skip'`, `is_correct = false`.
+- The DB column and type taxonomy remain unchanged for future coaching features.
 
 ### Correctness
 
@@ -707,12 +685,13 @@ instead of text. Storage bucket: **`content-images`** (public read, admin upload
 
 Use this for any button that triggers an async server action, especially where
 `useTransition` gives you a `pending` boolean. Currently used in:
-- `session-client.tsx` — Submit Answer, Next Question, End Session
+- `session-client.tsx` — Submit Answer ("Checking…"), Next Question ("Loading…"), End Session ("Ending…")
 - `curriculum-tree.tsx` — Seed JEE Curriculum
+- `start-session-form.tsx` — Start session button (uses `useFormStatus` + `Loader2`)
 
 ## Signup flow
 
-- **full_name** is required on signup (NOT NULL in DB).
+- **full_name** is nullable in DB (migration `0004_fix_fullname.sql`). The `handle_new_user()` trigger inserts only `(id, email)`; the client updates `full_name` immediately after `auth.signUp` succeeds.
 - Optional fields added: **phone** and **target_exam** (JEE Mains / JEE Advanced / NEET / Other).
 - Both are written to `user_profiles` immediately after `auth.signUp` succeeds.
 - After signup, user sees an inline verification panel (not just a toast) with a

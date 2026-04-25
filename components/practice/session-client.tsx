@@ -25,7 +25,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { MathPreview } from "@/components/math-preview"
-import { ApproachButtons } from "@/components/practice/approach-buttons"
 import {
   AnswerArea,
   emptyAnswerFor,
@@ -33,7 +32,7 @@ import {
   type AnswerInput,
 } from "@/components/practice/answer-area"
 import { SolutionTabs } from "@/components/practice/solution-tabs"
-import { APPROACHES, type ApproachId } from "@/lib/constants/practice"
+import type { ApproachId } from "@/lib/constants/practice"
 import type { CorrectAnswer, QuestionData, SolutionData } from "@/lib/queries/practice"
 import {
   endSession,
@@ -68,12 +67,7 @@ function checkCorrectness(answer: AnswerInput, correct: CorrectAnswer): boolean 
   return null
 }
 
-function approachLabel(id: ApproachId | null): string {
-  if (!id) return ""
-  return APPROACHES.find((a) => a.id === id)?.label ?? id
-}
-
-type Phase = "approach_selection" | "solving" | "submitted" | "exhausted"
+type Phase = "solving" | "submitted" | "exhausted"
 type SessionStats = { attempted: number; correct: number }
 
 // ---------- component ----------
@@ -102,10 +96,9 @@ export function SessionClient({
   const [questionNumber, setQuestionNumber] = useState<number>(initialQuestionNumber)
   const [stats, setStats] = useState<SessionStats>({ attempted: initialAttempted, correct: initialCorrectCount })
 
-  const [phase, setPhase] = useState<Phase>("approach_selection")
-  const [approach, setApproach] = useState<ApproachId | null>(null)
-  const [approachChosenAt, setApproachChosenAt] = useState<string | null>(null)
-  const [answer, setAnswer] = useState<AnswerInput>(null)
+  const [phase, setPhase] = useState<Phase>("solving")
+  const [approach, setApproach] = useState<ApproachId>("full_solve")
+  const [answer, setAnswer] = useState<AnswerInput>(emptyAnswerFor(initialQuestion))
   const [isCorrect, setIsCorrect] = useState<boolean | null>(null)
   const [submittedTimeSec, setSubmittedTimeSec] = useState<number>(0)
 
@@ -130,42 +123,24 @@ export function SessionClient({
 
   // ---------- handlers ----------
 
-  const handleSelectApproach = useCallback(
-    (id: ApproachId) => {
-      if (phase !== "approach_selection") return
-      setApproach(id)
-      setApproachChosenAt(new Date().toISOString())
-
-      if (id === "skip") {
-        const timeTaken = Math.max(0, Math.floor((Date.now() - questionStartedAtRef.current) / 1000))
-        setSubmittedTimeSec(timeTaken)
-        setIsCorrect(null)
-        setStats((s) => ({ ...s, attempted: s.attempted + 1 }))
-        setPhase("submitted")
-        startSubmit(async () => {
-          const res = await submitAttempt({
-            sessionId, questionId: question.id, approach: "skip", answer: null,
-            isCorrect: false, timeTakenSeconds: timeTaken,
-            approachChosenAt: new Date().toISOString(),
-          })
-          if (!res.ok) console.warn("submitAttempt failed:", res.error)
-        })
-        return
-      }
-
-      setAnswer(emptyAnswerFor(question))
-      setPhase("solving")
-    },
-    [phase, question, sessionId]
-  )
-
-  const handleChangeApproach = useCallback(() => {
-    setPhase("approach_selection")
-    setAnswer(null)
-  }, [])
+  const handleSkip = useCallback(() => {
+    const timeTaken = Math.max(0, Math.floor((Date.now() - questionStartedAtRef.current) / 1000))
+    setSubmittedTimeSec(timeTaken)
+    setIsCorrect(null)
+    setApproach("skip")
+    setStats((s) => ({ ...s, attempted: s.attempted + 1 }))
+    setPhase("submitted")
+    startSubmit(async () => {
+      const res = await submitAttempt({
+        sessionId, questionId: question.id, approach: "skip", answer: null,
+        isCorrect: false, timeTakenSeconds: timeTaken, approachChosenAt: null,
+      })
+      if (!res.ok) console.warn("submitAttempt failed:", res.error)
+    })
+  }, [question, sessionId])
 
   const handleSubmit = useCallback(() => {
-    if (phase !== "solving" || !approach || !hasAnswer(answer)) return
+    if (phase !== "solving" || !hasAnswer(answer)) return
     const timeTaken = Math.max(0, Math.floor((Date.now() - questionStartedAtRef.current) / 1000))
     const correctness = checkCorrectness(answer, question.correct_answer)
     setSubmittedTimeSec(timeTaken)
@@ -177,13 +152,13 @@ export function SessionClient({
     setPhase("submitted")
     startSubmit(async () => {
       const res = await submitAttempt({
-        sessionId, questionId: question.id, approach, answer,
+        sessionId, questionId: question.id, approach: "full_solve", answer,
         isCorrect: correctness === null ? null : correctness,
-        timeTakenSeconds: timeTaken, approachChosenAt,
+        timeTakenSeconds: timeTaken, approachChosenAt: null,
       })
       if (!res.ok) console.warn("submitAttempt failed:", res.error)
     })
-  }, [phase, approach, answer, question, sessionId, approachChosenAt])
+  }, [phase, answer, question, sessionId])
 
   const handleNext = useCallback(() => {
     startNext(async () => {
@@ -193,14 +168,13 @@ export function SessionClient({
       setQuestion(res.question)
       setSolutions(res.solutions)
       setQuestionNumber((n) => n + 1)
-      setApproach(null)
-      setApproachChosenAt(null)
-      setAnswer(null)
+      setApproach("full_solve")
+      setAnswer(emptyAnswerFor(res.question))
       setIsCorrect(null)
       setSubmittedTimeSec(0)
       questionStartedAtRef.current = Date.now()
       setNowMs(Date.now())
-      setPhase("approach_selection")
+      setPhase("solving")
     })
   }, [sessionId, router])
 
@@ -227,11 +201,6 @@ export function SessionClient({
           e.preventDefault()
           handleSubmit()
         }
-        return
-      }
-      if (phase === "approach_selection") {
-        const n = Number(e.key)
-        if (n >= 1 && n <= 5) { e.preventDefault(); handleSelectApproach(APPROACHES[n - 1].id) }
         return
       }
       if (phase === "solving") {
@@ -266,7 +235,7 @@ export function SessionClient({
     }
     window.addEventListener("keydown", onKey)
     return () => window.removeEventListener("keydown", onKey)
-  }, [phase, answer, question, handleSelectApproach, handleSubmit, handleNext])
+  }, [phase, answer, question, handleSubmit, handleNext])
 
   const accuracyPct = useMemo(() => {
     if (stats.attempted === 0) return null
@@ -293,31 +262,16 @@ export function SessionClient({
           <ExhaustedPanel sessionId={sessionId} onEnd={() => handleEnd(false)} pendingEnd={pendingEnd} />
         ) : (
           <>
-            <QuestionCard
-              question={question}
-              approach={approach}
-              phase={phase}
-              optimalSec={optimalSec}
-            />
-
-            {phase === "approach_selection" ? (
-              <div className="mt-4 grid gap-3">
-                <p className="text-sm font-medium text-muted-foreground">
-                  Commit to your approach first.
-                </p>
-                <ApproachButtons onSelect={handleSelectApproach} />
-              </div>
-            ) : null}
+            <QuestionCard question={question} optimalSec={optimalSec} />
 
             {phase === "solving" ? (
               <div className="mt-4 grid gap-3">
                 <AnswerArea question={question} answer={answer} onChange={setAnswer} />
-                {/* Full-width submit on mobile, auto-width on desktop */}
                 <LoadingButton
                   onClick={handleSubmit}
                   disabled={!hasAnswer(answer)}
                   loading={pendingSubmit}
-                  loadingText="Submitting…"
+                  loadingText="Checking…"
                   className="w-full min-h-[48px] md:w-auto"
                 >
                   Submit answer
@@ -325,10 +279,10 @@ export function SessionClient({
                 <div className="flex items-center justify-between">
                   <button
                     type="button"
-                    onClick={handleChangeApproach}
+                    onClick={handleSkip}
                     className="text-xs text-muted-foreground underline underline-offset-4 hover:text-foreground"
                   >
-                    Change approach
+                    Skip this question
                   </button>
                   <span className="hidden text-xs text-muted-foreground md:inline">
                     Press Enter to submit
@@ -454,13 +408,9 @@ function SessionHeader({
 
 function QuestionCard({
   question,
-  approach,
-  phase,
   optimalSec,
 }: {
   question: QuestionData
-  approach: ApproachId | null
-  phase: Phase
   optimalSec: number
 }) {
   const tag = [question.subject_name, question.chapter_name, question.topic_name]
@@ -475,11 +425,6 @@ function QuestionCard({
         <span>·</span>
         <span>~{optimalSec}s</span>
         {question.source ? <><span>·</span><span>{question.source}</span></> : null}
-        {approach && phase !== "approach_selection" ? (
-          <Badge variant="secondary" className="ml-auto text-xs">
-            {approachLabel(approach)}
-          </Badge>
-        ) : null}
       </div>
 
       {question.question_image_url ? (
@@ -519,7 +464,7 @@ function ResultPanel({
   question: QuestionData
   solutions: SolutionData[]
   answer: AnswerInput
-  approach: ApproachId | null
+  approach: ApproachId
   isCorrect: boolean | null
   takenSec: number
   optimalSec: number
@@ -586,7 +531,7 @@ function ResultPanel({
         <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           Reasoning-first solutions
         </h3>
-        <SolutionTabs solutions={solutions} chosenApproach={approach} />
+        <SolutionTabs solutions={solutions} />
       </section>
 
       {/* Sticky bottom action bar — plain bg (no backdrop-filter on page-level elements) */}

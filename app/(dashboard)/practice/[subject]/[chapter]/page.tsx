@@ -1,11 +1,11 @@
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { ArrowLeft, Play } from "lucide-react"
+import { ArrowLeft } from "lucide-react"
 
 import { createClient } from "@/lib/supabase/server"
 import { getTopicsForChapter } from "@/lib/queries/practice"
-import { Badge } from "@/components/ui/badge"
 import { StartSessionForm } from "@/components/practice/start-session-form"
+import { TopicRow } from "@/components/practice/topic-row"
 
 export const dynamic = "force-dynamic"
 
@@ -43,7 +43,7 @@ export default async function ChapterPracticePage({
         </p>
       </div>
 
-      {/* ── Topic list ── */}
+      {/* ── Topic list — entire row is the tap target ── */}
       <div className="grid gap-2">
         {topics.length === 0 ? (
           <div className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">
@@ -51,39 +51,14 @@ export default async function ChapterPracticePage({
           </div>
         ) : (
           topics.map((t) => (
-            <div
+            <TopicRow
               key={t.id}
-              className="flex min-h-[64px] items-center gap-3 rounded-xl border bg-card px-4 py-3 transition-colors hover:border-primary/30"
-            >
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <h3 className="font-medium">{t.name}</h3>
-                  <Badge variant="outline" className="text-xs">
-                    {t.questionCount} q{t.questionCount !== 1 ? "s" : ""}
-                  </Badge>
-                </div>
-                <div className="mt-0.5 text-xs text-muted-foreground">
-                  {t.userAttempted > 0 ? (
-                    <span>
-                      <strong className="text-foreground">{t.userAccuracy ?? 0}%</strong> accuracy
-                      {" · "}{t.userAttempted} attempted
-                    </span>
-                  ) : (
-                    <span>Not started</span>
-                  )}
-                </div>
-              </div>
-              <StartSessionForm
-                scope="topic"
-                scopeId={t.id}
-                variant="outline"
-                size="sm"
-                disabled={t.questionCount === 0}
-                disabledReason={t.questionCount === 0 ? "No questions yet" : undefined}
-              >
-                <Play /> Start
-              </StartSessionForm>
-            </div>
+              id={t.id}
+              name={t.name}
+              questionCount={t.questionCount}
+              userAttempted={t.userAttempted}
+              userAccuracy={t.userAccuracy}
+            />
           ))
         )}
       </div>

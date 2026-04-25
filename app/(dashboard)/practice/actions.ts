@@ -139,7 +139,7 @@ export async function startSession(formData: FormData): Promise<void> {
 export type SubmitAttemptInput = {
   sessionId: string
   questionId: string
-  approach: ApproachId
+  approach?: ApproachId
   answer: unknown
   isCorrect: boolean | null
   timeTakenSeconds: number
@@ -175,7 +175,7 @@ export async function submitAttempt(
     session_id: input.sessionId,
     user_id: userId,
     question_id: input.questionId,
-    chosen_approach: input.approach,
+    chosen_approach: input.approach ?? 'full_solve',
     approach_chosen_at: input.approachChosenAt,
     submitted_answer: JSON.parse(JSON.stringify(input.answer ?? null)),
     is_correct: input.isCorrect,
