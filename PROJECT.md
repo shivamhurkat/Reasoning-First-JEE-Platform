@@ -691,7 +691,7 @@ Use this for any button that triggers an async server action, especially where
 
 ## Signup flow
 
-- **full_name** is nullable in DB (migration `0004_fix_fullname.sql`). The `handle_new_user()` trigger inserts only `(id, email)`; the client updates `full_name` immediately after `auth.signUp` succeeds.
+- **full_name** is nullable in DB (migration `0004_fix_fullname.sql`). Migration `0005_fix_user_trigger.sql` fixes `handle_new_user()` to also capture `full_name` from Google OAuth metadata (`raw_user_meta_data->>'full_name'` or `raw_user_meta_data->>'name'`). For email/password signup, the client still updates `full_name` immediately after `auth.signUp` succeeds.
 - Optional fields added: **phone** and **target_exam** (JEE Mains / JEE Advanced / NEET / Other).
 - Both are written to `user_profiles` immediately after `auth.signUp` succeeds.
 - After signup, user sees an inline verification panel (not just a toast) with a
@@ -747,6 +747,55 @@ Live at `/progress` (`app/(dashboard)/progress/page.tsx`). Answers the question:
 - `practice_attempts(user_id)` index — already implied by RLS but should be a named index.
 - `questions(topic_id)` index — used by the hierarchy join chain.
 - Consider a materialized view or Postgres RPC once attempts exceed ~10k rows per user.
+
+## Settings Page
+
+Live at `/settings` (`app/(dashboard)/settings/page.tsx`). Three sections:
+
+### Section 1 — Profile
+Editable fields: full name, phone, target exam (JEE Mains / JEE Advanced / NEET / Other), class level (11 / 12 / Dropper), target year. Email shown read-only (auth email can't be changed here). Server action `updateProfile` in `actions.ts` validates and writes to `user_profiles`. Calls `revalidatePath("/", "layout")` so the sidebar name updates immediately.
+
+### Section 2 — Account
+"Change password" button reveals an inline form (new password + confirm). Calls `supabase.auth.updateUser({ password })` via the `changePassword` server action. "Sign out" uses the existing `POST /auth/signout` route.
+
+### Section 3 — Data (read-only)
+Shows: account created date, total XP, current streak, total questions attempted.
+
+### Implementation notes
+- `page.tsx` is a server component — fetches profile + attempt count.
+- `settings-client.tsx` is a `"use client"` component — handles form state with `useTransition` + `toast`.
+- Uses native `<select>` elements (not shadcn Select) so values serialize correctly into `FormData` for server actions.
+
+## Bulk Question Import
+
+Live at `/admin/import`. Two modes; accessible from the admin top bar "Import" link.
+
+### Mode 1 — CSV Upload
+Accepts a `.csv` file (drag-drop or click-to-browse). Parsed client-side with **papaparse**.
+
+**CSV columns:** `subject, chapter, topic, question_type, question_text, option_a, option_b, option_c, option_d, correct_answer, difficulty, source, year`
+
+- `correct_answer`: letter (a–d) for MCQ, comma-separated for multi (e.g. `a,c`), number for numerical.
+- Client validates: required fields, valid `question_type`, difficulty 1–5, topic name exists in DB.
+- Preview table: green check / red X per row with inline error message.
+- "Download CSV template" button creates a Blob download with 2 example rows.
+- "Import N valid questions" → calls `importQuestionsFromCSV` server action → inserts as `status = 'draft'`.
+- Shows result: "Imported 47. 3 skipped (invalid topic)."
+
+### Mode 2 — Bulk Images
+For rapidly ingesting scanned question papers.
+
+1. Admin selects subject/chapter/topic (cascading dropdowns), question type, option count.
+2. Uploads multiple image files at once.
+3. Each image is uploaded to `content-images` Supabase bucket via `uploadContentImage`.
+4. `importQuestionsFromImages` server action creates one draft question per image with placeholder correct answer.
+5. Admin then edits each question individually to set the real answer and add solutions.
+
+### Server actions (`app/(admin)/admin/import/actions.ts`)
+| Action | Does |
+|---|---|
+| `importQuestionsFromCSV(rows)` | Looks up topic IDs, inserts questions, returns inserted + skipped counts |
+| `importQuestionsFromImages(imageUrls, metadata)` | Creates draft questions with images, placeholder options/answer |
 
 ## Commands
 

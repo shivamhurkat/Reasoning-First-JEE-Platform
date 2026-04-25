@@ -12,6 +12,7 @@ const ADMIN_NAV = [
   { href: "/admin/subjects", label: "Curriculum" },
   { href: "/admin/questions", label: "Questions" },
   { href: "/admin/questions/new", label: "New Question" },
+  { href: "/admin/import", label: "Import" },
 ]
 
 export function AdminTopBar({ email }: { email: string }) {
