@@ -34,6 +34,8 @@ export type ParsedRow = {
   difficulty: number
   source?: string
   year?: number
+  standard_solution?: string
+  shortcut_solution?: string
 }
 
 export type ImportCSVResult = {
@@ -43,7 +45,8 @@ export type ImportCSVResult = {
 }
 
 export async function importQuestionsFromCSV(
-  rows: ParsedRow[]
+  rows: ParsedRow[],
+  publishImmediately = true
 ): Promise<Result<ImportCSVResult>> {
   const ctx = await adminCheck()
   if (!ctx) return { ok: false, error: "Not authorized" }
@@ -133,23 +136,58 @@ export async function importQuestionsFromCSV(
       correct_answer = { type: "subjective", value: row.correct_answer }
     }
 
-    const { error } = await supabase.from("questions").insert({
-      topic_id: topicId,
-      question_text: row.question_text,
-      question_type: row.question_type,
-      options,
-      correct_answer,
-      difficulty: row.difficulty,
-      source: row.source || null,
-      year: row.year || null,
-      status: "draft",
-    })
+    const { data: question, error } = await supabase
+      .from("questions")
+      .insert({
+        topic_id: topicId,
+        question_text: row.question_text,
+        question_type: row.question_type,
+        options,
+        correct_answer,
+        difficulty: row.difficulty,
+        source: row.source || null,
+        year: row.year || null,
+        status: publishImmediately ? "published" : "draft",
+      })
+      .select("id")
+      .single()
 
     if (error) {
       skipped++
       errors.push(`Row ${rowNum}: ${error.message}`)
-    } else {
-      inserted++
+      continue
+    }
+
+    inserted++
+
+    const solutionsToInsert: {
+      question_id: string
+      solution_type: string
+      content: string
+      status: string
+      created_by: string
+    }[] = []
+
+    if (row.standard_solution?.trim()) {
+      solutionsToInsert.push({
+        question_id: question.id,
+        solution_type: "standard",
+        content: row.standard_solution.trim(),
+        status: "published",
+        created_by: ctx.user.id,
+      })
+    }
+    if (row.shortcut_solution?.trim()) {
+      solutionsToInsert.push({
+        question_id: question.id,
+        solution_type: "shortcut",
+        content: row.shortcut_solution.trim(),
+        status: "published",
+        created_by: ctx.user.id,
+      })
+    }
+    if (solutionsToInsert.length > 0) {
+      await supabase.from("solutions").insert(solutionsToInsert)
     }
   }
 

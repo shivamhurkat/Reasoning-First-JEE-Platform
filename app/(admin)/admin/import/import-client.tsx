@@ -52,6 +52,8 @@ const CSV_HEADERS = [
   "difficulty",
   "source",
   "year",
+  "standard_solution",
+  "shortcut_solution",
 ]
 
 const CSV_EXAMPLE_ROWS = [
@@ -60,15 +62,17 @@ const CSV_EXAMPLE_ROWS = [
     "Mechanics",
     "Kinematics",
     "single_correct",
-    "A ball is thrown vertically upward with speed 20 m/s. What is the maximum height reached? (g=10 m/s²)",
-    "10 m",
-    "20 m",
-    "30 m",
-    "40 m",
+    "A ball starts from rest with acceleration 10 m/s². Its velocity after 2 s is:",
+    "10 m/s",
+    "20 m/s",
+    "30 m/s",
+    "40 m/s",
     "b",
     "3",
     "JEE Mains 2023",
     "2023",
+    "Using kinematic equation $v = u + at$, substituting values: $v = 0 + 10(2) = 20$ m/s. Answer is (B).",
+    "Shortcut: For constant acceleration from rest, $v = at$. Directly $10 \\times 2 = 20$. No need for other equations.",
   ],
   [
     "Chemistry",
@@ -84,6 +88,8 @@ const CSV_EXAMPLE_ROWS = [
     "4",
     "JEE Advanced 2022",
     "2022",
+    "Using $w = -nRT\\ln(V_2/V_1) = -1 \\times 8.314 \\times 300 \\times \\ln(10) = -5744$ J.",
+    "",
   ],
 ]
 
@@ -106,8 +112,8 @@ export function ImportClient({ subjects, chapters, topics, knownTopicNames }: Pr
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Import questions</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Bulk-add draft questions via CSV or image upload. All questions land in{" "}
-          <strong>draft</strong> status — publish from the Questions table.
+          Bulk-add questions via CSV (with optional solutions) or image upload. CSV imports can be
+          published immediately; image imports always land in <strong>draft</strong>.
         </p>
       </div>
 
@@ -154,6 +160,7 @@ function CSVTab({ knownTopicNames }: { knownTopicNames: Set<string> }) {
     skipped: number
     errors: string[]
   } | null>(null)
+  const [publishImmediately, setPublishImmediately] = useState(true)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [isDragging, setIsDragging] = useState(false)
 
@@ -176,6 +183,21 @@ function CSVTab({ knownTopicNames }: { knownTopicNames: Set<string> }) {
           const validTypes = ["single_correct", "multi_correct", "numerical", "subjective"]
           if (raw.question_type && !validTypes.includes(raw.question_type)) {
             errors.push(`question_type must be one of: ${validTypes.join(", ")}`)
+          }
+          const mcqLetters = ["a", "b", "c", "d"]
+          if (raw.question_type === "single_correct") {
+            if (raw.correct_answer && !mcqLetters.includes(raw.correct_answer.toLowerCase().trim())) {
+              errors.push("correct_answer must be a, b, c, or d for single_correct")
+            }
+          } else if (raw.question_type === "multi_correct") {
+            const parts = raw.correct_answer?.split(",").map((v) => v.trim().toLowerCase()).filter(Boolean) ?? []
+            if (raw.correct_answer && (parts.length === 0 || parts.some((p) => !mcqLetters.includes(p)))) {
+              errors.push("correct_answer must be comma-separated a/b/c/d values for multi_correct")
+            }
+          } else if (raw.question_type === "numerical") {
+            if (raw.correct_answer && isNaN(parseFloat(raw.correct_answer))) {
+              errors.push("correct_answer must be a valid number for numerical")
+            }
           }
           const diff = parseInt(raw.difficulty, 10)
           if (isNaN(diff) || diff < 1 || diff > 5) {
@@ -206,6 +228,8 @@ function CSVTab({ knownTopicNames }: { knownTopicNames: Set<string> }) {
             difficulty: diff || 3,
             source: raw.source || undefined,
             year: raw.year ? parseInt(raw.year, 10) : undefined,
+            standard_solution: raw.standard_solution?.trim() || undefined,
+            shortcut_solution: raw.shortcut_solution?.trim() || undefined,
             _valid: errors.length === 0,
             _error: errors.join("; "),
           }
@@ -241,7 +265,7 @@ function CSVTab({ knownTopicNames }: { knownTopicNames: Set<string> }) {
       return
     }
     startTransition(async () => {
-      const res = await importQuestionsFromCSV(validRows as ParsedRow[])
+      const res = await importQuestionsFromCSV(validRows as ParsedRow[], publishImmediately)
       if (res.ok) {
         setResult(res.data)
         toast.success(`Imported ${res.data.inserted} questions`)
@@ -252,6 +276,9 @@ function CSVTab({ knownTopicNames }: { knownTopicNames: Set<string> }) {
   }
 
   const validCount = rows.filter((r) => r._valid).length
+  const validRows = rows.filter((r) => r._valid)
+  const withStandardSolution = validRows.filter((r) => r.standard_solution).length
+  const withShortcutSolution = validRows.filter((r) => r.shortcut_solution).length
 
   return (
     <div className="grid gap-6">
@@ -280,6 +307,12 @@ function CSVTab({ knownTopicNames }: { knownTopicNames: Set<string> }) {
           </p>
           <p>
             <strong>For numerical questions:</strong> leave option_a–d empty
+          </p>
+          <p>
+            <strong>standard_solution / shortcut_solution:</strong> Optional. LaTeX supported —{" "}
+            <code className="bg-muted px-1 rounded">$x^2$</code> inline,{" "}
+            <code className="bg-muted px-1 rounded">$$...$$</code> block. If non-empty, a
+            published solution is created automatically.
           </p>
         </div>
         <p className="text-xs font-medium text-muted-foreground">Example rows:</p>
@@ -323,27 +356,45 @@ function CSVTab({ knownTopicNames }: { knownTopicNames: Set<string> }) {
       {/* Preview table */}
       {rows.length > 0 && (
         <div className="grid gap-4">
-          <div className="flex items-center justify-between">
+          <div className="grid gap-3">
             <p className="text-sm">
               <strong>{rows.length}</strong> rows parsed —{" "}
               <span className="text-emerald-600">{validCount} valid</span>,{" "}
               <span className="text-destructive">{rows.length - validCount} invalid</span>
             </p>
-            <Button
-              onClick={handleImport}
-              disabled={isPending || validCount === 0}
-              className="gap-2"
-            >
-              {isPending ? (
-                <>
-                  <Loader2 className="size-4 animate-spin" /> Importing…
-                </>
-              ) : (
-                <>
-                  <Upload className="size-4" /> Import {validCount} valid questions
-                </>
-              )}
-            </Button>
+            {validCount > 0 && (
+              <p className="text-xs text-muted-foreground">
+                {validCount} question{validCount !== 1 ? "s" : ""},{" "}
+                {withStandardSolution} with standard solution,{" "}
+                {withShortcutSolution} with shortcut solution
+              </p>
+            )}
+            <div className="flex items-center justify-between gap-4 flex-wrap">
+              <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={publishImmediately}
+                  onChange={(e) => setPublishImmediately(e.target.checked)}
+                  className="rounded border-input accent-primary size-4 cursor-pointer"
+                />
+                Publish questions immediately
+              </label>
+              <Button
+                onClick={handleImport}
+                disabled={isPending || validCount === 0}
+                className="gap-2"
+              >
+                {isPending ? (
+                  <>
+                    <Loader2 className="size-4 animate-spin" /> Importing…
+                  </>
+                ) : (
+                  <>
+                    <Upload className="size-4" /> Import {validCount} valid questions
+                  </>
+                )}
+              </Button>
+            </div>
           </div>
 
           <div className="overflow-x-auto rounded-xl border">
@@ -357,6 +408,8 @@ function CSVTab({ knownTopicNames }: { knownTopicNames: Set<string> }) {
                   <th className="px-3 py-2 font-medium max-w-[300px]">Question</th>
                   <th className="px-3 py-2 font-medium">Answer</th>
                   <th className="px-3 py-2 font-medium">Diff</th>
+                  <th className="px-3 py-2 font-medium">Std Solution</th>
+                  <th className="px-3 py-2 font-medium">Shortcut</th>
                 </tr>
               </thead>
               <tbody>
@@ -391,6 +444,20 @@ function CSVTab({ knownTopicNames }: { knownTopicNames: Set<string> }) {
                     <td className="px-3 py-2 max-w-[300px] truncate">{row.question_text}</td>
                     <td className="px-3 py-2 whitespace-nowrap">{row.correct_answer}</td>
                     <td className="px-3 py-2">{row.difficulty}</td>
+                    <td className="px-3 py-2 text-center">
+                      {row.standard_solution ? (
+                        <CheckCircle2 className="size-4 text-emerald-500 mx-auto" />
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </td>
+                    <td className="px-3 py-2 text-center">
+                      {row.shortcut_solution ? (
+                        <CheckCircle2 className="size-4 text-emerald-500 mx-auto" />
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -661,8 +728,8 @@ function SelectField({
 }
 
 function downloadTemplate() {
-  const rows = [CSV_HEADERS.join(","), ...CSV_EXAMPLE_ROWS.map((r) => r.join(","))]
-  const blob = new Blob([rows.join("\n")], { type: "text/csv" })
+  const csv = Papa.unparse([CSV_HEADERS, ...CSV_EXAMPLE_ROWS])
+  const blob = new Blob([csv], { type: "text/csv" })
   const url = URL.createObjectURL(blob)
   const a = document.createElement("a")
   a.href = url
