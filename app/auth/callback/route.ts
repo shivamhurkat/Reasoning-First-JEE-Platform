@@ -8,11 +8,11 @@ import { createClient } from "@/lib/supabase/server"
 export async function GET(request: NextRequest) {
   const url = new URL(request.url)
   const code = url.searchParams.get("code")
-  const rawNext = url.searchParams.get("next") ?? "/"
+  const rawNext = url.searchParams.get("next") ?? "/dashboard"
   // Detect email-confirmation callbacks so we can redirect to /login?verified=true
   const callbackType = url.searchParams.get("type") // "signup" for email confirmation
   // Only allow same-origin redirects to avoid open-redirect abuse.
-  const next = rawNext.startsWith("/") && !rawNext.startsWith("//") ? rawNext : "/"
+  const next = rawNext.startsWith("/") && !rawNext.startsWith("//") ? rawNext : "/dashboard"
 
   if (!code) {
     return NextResponse.redirect(

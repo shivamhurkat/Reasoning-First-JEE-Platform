@@ -80,19 +80,24 @@ All tokens live in `app/globals.css` as CSS custom properties. Import token *nam
 ```
 .
 ├── app/
-│   ├── (auth)/           # Unauthenticated routes (login, signup, forgot/reset password)
+│   ├── (public)/         # Public (unauthenticated) routes — no sidebar/bottom-nav
+│   │   ├── layout.tsx    # Top bar (logo + Log in / Sign up) + footer
+│   │   └── page.tsx      # Landing page — serves `/`; redirects to /dashboard if logged in
+│   ├── (auth)/           # Auth form routes (login, signup, forgot/reset password)
 │   │   ├── layout.tsx
-│   │   ├── login/page.tsx
-│   │   ├── signup/page.tsx
+│   │   ├── login/page.tsx          # Server wrapper → redirect /dashboard if logged in
+│   │   ├── login/login-form.tsx    # "use client" login form
+│   │   ├── signup/page.tsx         # Server wrapper → redirect /dashboard if logged in
+│   │   ├── signup/signup-form.tsx  # "use client" signup form
 │   │   ├── forgot-password/page.tsx
 │   │   └── reset-password/page.tsx
 │   ├── (dashboard)/      # Authenticated student-facing routes
-│   │   ├── layout.tsx    # Server guard + AppShell
-│   │   ├── page.tsx      # Dashboard home — serves `/`
+│   │   ├── layout.tsx    # Server guard + AppShell (redirects to /login if no user)
+│   │   ├── dashboard/page.tsx  # Dashboard home — serves `/dashboard`
 │   │   ├── practice/page.tsx
 │   │   ├── progress/page.tsx
 │   │   └── settings/page.tsx
-│   ├── (admin)/          # Admin-only routes (not implemented yet)
+│   ├── (admin)/          # Admin-only routes
 │   ├── api/              # Route handlers (REST-style endpoints, webhooks)
 │   ├── auth/             # Auth plumbing routes (NOT a route group)
 │   │   ├── callback/route.ts   # OAuth + email-confirmation code exchange
@@ -140,13 +145,14 @@ All tokens live in `app/globals.css` as CSS custom properties. Import token *nam
 
 | Path | Access | Served by |
 | --- | --- | --- |
-| `/login` | Public | `app/(auth)/login/page.tsx` |
-| `/signup` | Public | `app/(auth)/signup/page.tsx` |
+| `/` | **Public** landing page; redirects to `/dashboard` if logged in | `app/(public)/page.tsx` |
+| `/login` | Public; redirects to `/dashboard` if logged in | `app/(auth)/login/page.tsx` |
+| `/signup` | Public; redirects to `/dashboard` if logged in | `app/(auth)/signup/page.tsx` |
 | `/forgot-password` | Public | `app/(auth)/forgot-password/page.tsx` |
 | `/reset-password` | Requires reset-session cookie (from email link) | `app/(auth)/reset-password/page.tsx` |
 | `/auth/callback` | Public endpoint (Supabase redirect target) | `app/auth/callback/route.ts` |
 | `/auth/signout` | POST only; no-op if no session | `app/auth/signout/route.ts` |
-| `/` | **Protected** (dashboard home) | `app/(dashboard)/page.tsx` |
+| `/dashboard` | **Protected** (dashboard home) | `app/(dashboard)/dashboard/page.tsx` |
 | `/practice` | **Protected** (practice landing) | `app/(dashboard)/practice/page.tsx` |
 | `/practice/[subject]` | **Protected** (chapter list) | `app/(dashboard)/practice/[subject]/page.tsx` |
 | `/practice/[subject]/[chapter]` | **Protected** (topic list) | `app/(dashboard)/practice/[subject]/[chapter]/page.tsx` |
@@ -162,7 +168,7 @@ All tokens live in `app/globals.css` as CSS custom properties. Import token *nam
 Protection is enforced in two server-component layouts:
 
 - `app/(dashboard)/layout.tsx` — redirects to `/login` if no user.
-- `app/(admin)/layout.tsx` — redirects to `/login` if no user, to `/` (silently, no toast) if `role !== 'admin'`. Silent redirect avoids leaking that `/admin/*` exists.
+- `app/(admin)/layout.tsx` — redirects to `/login` if no user, to `/dashboard` (silently, no toast) if `role !== 'admin'`. Silent redirect avoids leaking that `/admin/*` exists.
 
 The session cookie itself is refreshed on **every** request by the root
 `middleware.ts` → `updateSession` helper. Every admin server action also
@@ -188,8 +194,8 @@ user clicks link in email → /auth/callback?code=...
 
 ```
 user → /login → supabase.auth.signInWithPassword
-             → cookie set; router.push('/') + router.refresh()
-/              → middleware refreshes session → (dashboard) layout sees user → renders
+             → cookie set; router.push('/dashboard') + router.refresh()
+/dashboard     → middleware refreshes session → (dashboard) layout sees user → renders
 ```
 
 **Google OAuth**

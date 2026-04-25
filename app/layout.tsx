@@ -18,8 +18,34 @@ const geistMono = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "Reasoning-First JEE Platform",
-  description: "Reasoning-First JEE Platform",
+  title: {
+    default: "ReasonLab — Reasoning-First JEE Practice",
+    template: "%s | ReasonLab",
+  },
+  description:
+    "Practice JEE questions with dual solutions: the ideal approach and the shortcut. Track progress, fix weak areas, and think smarter.",
+  keywords: [
+    "JEE preparation",
+    "JEE practice",
+    "JEE shortcuts",
+    "JEE Mains",
+    "JEE Advanced",
+    "reasoning",
+    "IIT JEE",
+  ],
+  openGraph: {
+    title: "ReasonLab — Think Smarter for JEE",
+    description:
+      "Every question teaches you the textbook solution AND the shortcut.",
+    type: "website",
+    siteName: "ReasonLab",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "ReasonLab — Think Smarter for JEE",
+    description:
+      "Every question teaches you the textbook solution AND the shortcut.",
+  },
 };
 
 export default function RootLayout({

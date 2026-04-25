@@ -25,7 +25,7 @@ export default async function AdminLayout({
     .single()
 
   if (profileError || !profile || profile.role !== "admin") {
-    redirect("/")
+    redirect("/dashboard")
   }
 
   return (
