@@ -265,12 +265,25 @@ function CSVTab({ knownTopicNames }: { knownTopicNames: Set<string> }) {
       return
     }
     startTransition(async () => {
-      const res = await importQuestionsFromCSV(validRows as ParsedRow[], publishImmediately)
-      if (res.ok) {
-        setResult(res.data)
-        toast.success(`Imported ${res.data.inserted} questions`)
-      } else {
-        toast.error(res.error)
+      try {
+        const res = await importQuestionsFromCSV(validRows as ParsedRow[], publishImmediately)
+        if (res.ok) {
+          setResult(res.data)
+          if (res.data.inserted === 0) {
+            toast.error(`Imported 0 questions — ${res.data.skipped} skipped. See details below.`)
+          } else if (res.data.skipped > 0) {
+            toast.warning(
+              `Imported ${res.data.inserted} questions, ${res.data.skipped} skipped. See details below.`
+            )
+          } else {
+            toast.success(`Imported ${res.data.inserted} questions successfully.`)
+          }
+        } else {
+          toast.error(res.error)
+        }
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Unknown error"
+        toast.error(`Import failed: ${message}`)
       }
     })
   }
@@ -468,17 +481,39 @@ function CSVTab({ knownTopicNames }: { knownTopicNames: Set<string> }) {
 
       {/* Import result */}
       {result && (
-        <div className="rounded-xl border bg-emerald-50 p-4 text-sm dark:bg-emerald-950/30">
-          <p className="font-semibold text-emerald-700 dark:text-emerald-400">
-            Imported {result.inserted} questions.{" "}
-            {result.skipped > 0 && `${result.skipped} skipped.`}
+        <div
+          className={[
+            "rounded-xl border p-4 text-sm",
+            result.inserted === 0
+              ? "bg-destructive/10 border-destructive/30"
+              : result.skipped > 0
+                ? "bg-amber-50 border-amber-200 dark:bg-amber-950/30 dark:border-amber-800"
+                : "bg-emerald-50 border-emerald-200 dark:bg-emerald-950/30 dark:border-emerald-800",
+          ].join(" ")}
+        >
+          <p
+            className={[
+              "font-semibold",
+              result.inserted === 0
+                ? "text-destructive"
+                : result.skipped > 0
+                  ? "text-amber-700 dark:text-amber-400"
+                  : "text-emerald-700 dark:text-emerald-400",
+            ].join(" ")}
+          >
+            Imported: {result.inserted} &nbsp;|&nbsp; Skipped: {result.skipped}
           </p>
           {result.errors.length > 0 && (
-            <ul className="mt-2 grid gap-1 text-xs text-destructive list-disc pl-4">
-              {result.errors.map((e, i) => (
-                <li key={i}>{e}</li>
-              ))}
-            </ul>
+            <details className="mt-2" open={result.inserted === 0}>
+              <summary className="cursor-pointer text-xs font-medium text-muted-foreground mb-1">
+                {result.errors.length} skip reason{result.errors.length !== 1 ? "s" : ""}
+              </summary>
+              <ul className="grid gap-1 text-xs text-destructive list-disc pl-4">
+                {result.errors.map((e, i) => (
+                  <li key={i}>{e}</li>
+                ))}
+              </ul>
+            </details>
           )}
         </div>
       )}
