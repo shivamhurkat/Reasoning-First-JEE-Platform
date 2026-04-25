@@ -47,7 +47,7 @@ export default async function ImportPage() {
       subjects={subjects}
       chapters={chapters}
       topics={topics}
-      knownTopicNames={knownTopicNames}
+      knownTopicNames={Array.from(knownTopicNames)}
     />
   )
 }

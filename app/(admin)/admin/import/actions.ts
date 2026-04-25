@@ -48,6 +48,7 @@ export async function importQuestionsFromCSV(
   rows: ParsedRow[],
   publishImmediately = true
 ): Promise<Result<ImportCSVResult>> {
+  console.log('SERVER ACTION CALLED', rows.length)
   try {
     const ctx = await adminCheck()
     if (!ctx) return { ok: false, error: "Not authorized" }

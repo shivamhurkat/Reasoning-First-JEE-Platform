@@ -99,7 +99,7 @@ type Props = {
   subjects: Subject[]
   chapters: Chapter[]
   topics: Topic[]
-  knownTopicNames: Set<string>
+  knownTopicNames: string[]
 }
 
 // ── Root component ─────────────────────────────────────────────────────────────
@@ -142,7 +142,7 @@ export function ImportClient({ subjects, chapters, topics, knownTopicNames }: Pr
       </div>
 
       {activeTab === "csv" ? (
-        <CSVTab knownTopicNames={knownTopicNames} />
+        <CSVTab knownTopicNames={new Set(knownTopicNames)} />
       ) : (
         <ImagesTab subjects={subjects} chapters={chapters} topics={topics} />
       )}
@@ -173,6 +173,7 @@ function CSVTab({ knownTopicNames }: { knownTopicNames: Set<string> }) {
       header: true,
       skipEmptyLines: true,
       complete: (result) => {
+        console.log('knownTopicNames size:', knownTopicNames.size)
         const rawRows = result.data as Record<string, string>[]
         const validated: ValidatedRow[] = rawRows.map((raw, i) => {
           const errors: string[] = []
@@ -259,6 +260,7 @@ function CSVTab({ knownTopicNames }: { knownTopicNames: Set<string> }) {
   }
 
   function handleImport() {
+    console.log('IMPORT CLICKED', rows.length)
     const validRows = rows.filter((r) => r._valid)
     if (validRows.length === 0) {
       toast.error("No valid rows to import")
