@@ -65,6 +65,7 @@ export default function SignupPage() {
   const [verified, setVerified] = useState(false)
   const [resending, setResending] = useState(false)
   const [signupEmail, setSignupEmail] = useState("")
+  const [emailExists, setEmailExists] = useState(false)
 
   const form = useForm<SignupValues>({
     resolver: zodResolver(signupSchema),
@@ -94,6 +95,16 @@ export default function SignupPage() {
     if (error) {
       setSubmitting(false)
       toast.error(error.message)
+      return
+    }
+
+    // Supabase returns a fake success with an empty identities array when
+    // "Confirm email" is enabled and the email is already registered — to
+    // prevent email enumeration. Detect and surface this case explicitly.
+    if (data.user?.identities?.length === 0) {
+      setSubmitting(false)
+      toast.error("An account with this email already exists.")
+      setEmailExists(true)
       return
     }
 
@@ -231,6 +242,10 @@ export default function SignupPage() {
                       autoComplete="email"
                       placeholder="you@example.com"
                       {...field}
+                      onChange={(e) => {
+                        field.onChange(e)
+                        if (emailExists) setEmailExists(false)
+                      }}
                     />
                   </FormControl>
                   <FormMessage />
@@ -335,6 +350,15 @@ export default function SignupPage() {
             <Button type="submit" disabled={submitting} className="w-full">
               {submitting ? "Creating account…" : "Create account"}
             </Button>
+
+            {emailExists ? (
+              <p className="text-center text-sm text-destructive">
+                An account with this email already exists.{" "}
+                <Link href="/login" className="font-medium underline underline-offset-4">
+                  Log in instead
+                </Link>
+              </p>
+            ) : null}
           </form>
         </Form>
 

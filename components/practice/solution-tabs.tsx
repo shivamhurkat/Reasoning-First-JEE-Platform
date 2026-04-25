@@ -79,6 +79,11 @@ function SolutionBody({ solution }: { solution: SolutionData }) {
     solution.solution_type === "elimination" ||
     solution.solution_type === "pattern"
 
+  const hasBody =
+    !!solution.solution_image_url ||
+    !!solution.content ||
+    (solution.steps && solution.steps.length > 0)
+
   return (
     <div className="grid gap-4 rounded-xl border bg-card p-4 md:p-5">
       {solution.title ? (
@@ -111,6 +116,12 @@ function SolutionBody({ solution }: { solution: SolutionData }) {
         </div>
       ) : null}
       {solution.content ? <MathPreview value={solution.content} /> : null}
+
+      {!hasBody ? (
+        <p className="text-sm text-muted-foreground italic">
+          Solution content coming soon.
+        </p>
+      ) : null}
 
       {solution.steps && solution.steps.length > 0 ? (
         <ol className="grid gap-2">

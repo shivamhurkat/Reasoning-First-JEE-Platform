@@ -718,6 +718,36 @@ components/dashboard/
   mobile-header.tsx              Top bar shown on mobile (hamburger + avatar)
 ```
 
+## Progress / Analytics Page
+
+Live at `/progress` (`app/(dashboard)/progress/page.tsx`). Answers the question: "Am I getting better?"
+
+### Data layer
+
+`lib/queries/progress.ts` exposes server-side helpers (all use the server Supabase client, all respect RLS):
+
+| Function | Returns |
+|---|---|
+| `getOverviewStats(userId)` | Total attempts, accuracy %, formatted total time, current streak |
+| `getMasteryData(userId)` | `{ subjectMastery, topicMastery, weakTopics }` — derived from one shared query |
+| `getRecentSessions(userId, limit)` | Last N completed sessions with scope, accuracy, duration |
+
+`getMasteryData` does one shared DB round-trip (avoids fetching the hierarchy three times). It aggregates in JS — see the inline **Flag for indexing** comments for which indexes to add as data grows.
+
+### Page sections
+
+1. **Overview** — 4 stat cards in a 2×2 grid on mobile, 4-col on sm+. Questions attempted, accuracy, total time, streak.
+2. **Subject mastery** — one card per subject with colored left border (CSS token), accuracy bar, strongest/weakest topic (requires ≥3 attempts per topic).
+3. **Topic breakdown** — shadcn `Accordion` (type="multiple"), sorted weakest first. Colored mastery dot + accuracy badge per row. Mobile: simplified (no "X tried" count column).
+4. **Recent sessions** — last 10 completed sessions, relative timestamp, link to `/practice/session/[id]/summary`.
+5. **Weak areas** — topics with ≥5 attempts and accuracy <50%, sorted by accuracy ASC. Each row has a `<form action={startSession}>` that creates a new session for that topic. Empty state: "Keep practising to see detailed insights".
+
+### Performance flags
+
+- `practice_attempts(user_id)` index — already implied by RLS but should be a named index.
+- `questions(topic_id)` index — used by the hierarchy join chain.
+- Consider a materialized view or Postgres RPC once attempts exceed ~10k rows per user.
+
 ## Commands
 
 ```bash

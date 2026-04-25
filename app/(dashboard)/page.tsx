@@ -101,7 +101,7 @@ export default async function DashboardHomePage() {
     .slice(0, 6)
 
   // Extract first name for greeting
-  const rawName = profile?.full_name?.trim() || profile?.email?.split("@")[0] || "there"
+  const rawName = profile?.full_name?.trim() || user.email?.split("@")[0] || "there"
   const firstName = rawName.split(" ")[0]
 
   const streak = profile?.current_streak ?? 0
