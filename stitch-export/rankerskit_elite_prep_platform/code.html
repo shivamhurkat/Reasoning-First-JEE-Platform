@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html class="dark" lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta content="width=device-width, initial-scale=1.0" name="viewport">
+    <title>RankersKit - Elite Prep Platform</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+
+    <!-- Google Fonts & Material Symbols -->
+    <link href="https://fonts.googleapis.com" rel="preconnect">
+    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+
+    <!-- React and React Router CDN -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script crossorigin src="https://unpkg.com/history@5/umd/history.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-router@6.3.0/umd/react-router.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-router-dom@6.3.0/umd/react-router-dom.development.js"></script>
+    <script crossorigin src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
+
+    <script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "inverse-primary": "#005bc1",
+                        "surface-variant": "#333539",
+                        "error": "#ffb4ab",
+                        "surface-dim": "#111318",
+                        "on-secondary-container": "#ddb7ff",
+                        "tertiary-fixed": "#ffdcc3",
+                        "on-primary-fixed": "#001a41",
+                        "on-surface-variant": "#c1c6d7",
+                        "on-tertiary-fixed-variant": "#6e3900",
+                        "primary-fixed": "#d8e2ff",
+                        "background": "#111318",
+                        "primary-fixed-dim": "#adc6ff",
+                        "tertiary-fixed-dim": "#ffb77d",
+                        "on-secondary-fixed-variant": "#6900b3",
+                        "on-tertiary-container": "#432100",
+                        "outline-variant": "#414755",
+                        "surface-container-highest": "#333539",
+                        "on-error": "#690005",
+                        "primary-container": "#4b8eff",
+                        "secondary-container": "#7900cd",
+                        "on-tertiary": "#4d2600",
+                        "surface-container-lowest": "#0c0e12",
+                        "primary": "#adc6ff",
+                        "surface-container-low": "#1a1c20",
+                        "on-primary": "#002e69",
+                        "inverse-on-surface": "#2f3035",
+                        "on-tertiary-fixed": "#2f1500",
+                        "on-primary-container": "#00285c",
+                        "on-error-container": "#ffdad6",
+                        "surface-tint": "#adc6ff",
+                        "secondary-fixed-dim": "#ddb7ff",
+                        "secondary-fixed": "#f0dbff",
+                        "tertiary": "#ffb77d",
+                        "on-surface": "#e2e2e8",
+                        "error-container": "#93000a",
+                        "on-primary-fixed-variant": "#004493",
+                        "on-background": "#e2e2e8",
+                        "secondary": "#ddb7ff",
+                        "tertiary-container": "#cf7d30",
+                        "on-secondary-fixed": "#2c0050",
+                        "on-secondary": "#4a0080",
+                        "outline": "#8b90a0",
+                        "inverse-surface": "#e2e2e8",
+                        "surface-container-high": "#282a2e",
+                        "surface-container": "#1e2024",
+                        "surface": "#111318",
+                        "surface-bright": "#37393e"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "xl": "80px",
+                        "xs": "4px",
+                        "sm": "12px",
+                        "lg": "48px",
+                        "container-max": "1200px",
+                        "base": "8px",
+                        "md": "24px",
+                        "gutter": "24px"
+                    },
+                    "fontFamily": {
+                        "h1": ["Inter"],
+                        "body-md": ["Inter"],
+                        "h2": ["Inter"],
+                        "body-lg": ["Inter"],
+                        "display": ["Inter"],
+                        "label-caps": ["Inter"]
+                    },
+                    "fontSize": {
+                        "h1": ["32px", { "lineHeight": "1.2", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "body-md": ["16px", { "lineHeight": "1.6", "letterSpacing": "0", "fontWeight": "400" }],
+                        "h2": ["24px", { "lineHeight": "1.3", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+                        "body-lg": ["18px", { "lineHeight": "1.6", "letterSpacing": "0", "fontWeight": "400" }],
+                        "display": ["48px", { "lineHeight": "1.1", "letterSpacing": "-0.04em", "fontWeight": "700" }],
+                        "label-caps": ["12px", { "lineHeight": "1.0", "letterSpacing": "0.1em", "fontWeight": "600" }]
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #111318; /* surface */
+            color: #e2e2e8; /* on-surface */
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+            font-family: 'Inter', sans-serif;
+        }
+        .inner-glow { box-shadow: inset 1px 1px 0px 0px rgba(255, 255, 255, 0.05); }
+        .glow-hover:hover { box-shadow: 0 0 20px rgba(75, 142, 255, 0.3); }
+        .text-gradient { background: linear-gradient(to right, #adc6ff, #ddb7ff); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .glass-panel, .glass-card {
+            background: rgba(30, 32, 36, 0.4);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+            border-left: 1px solid rgba(255, 255, 255, 0.05);
+            border-right: 1px solid rgba(0, 0, 0, 0.2);
+            border-bottom: 1px solid rgba(0, 0, 0, 0.4);
+        }
+        .glow-text { text-shadow: 0 0 20px rgba(173, 198, 255, 0.3); }
+        .bg-grid-pattern {
+            background-image: linear-gradient(to right, rgba(255,255,255,0.05) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.05) 1px, transparent 1px);
+            background-size: 40px 40px;
+        }
+        .stroke-elevation {
+            border: 1px solid;
+            border-image-source: linear-gradient(180deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0) 100%);
+            border-image-slice: 1;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+        const { createRoot } = ReactDOM;
+        const { MemoryRouter, Routes, Route, Link, useNavigate } = ReactRouterDOM;
+
+        // --- Shared Components ---
+
+        const Header = () => {
+            return (
+                <header className="fixed top-0 w-full z-50 bg-slate-950/80 backdrop-blur-xl border-b border-white/10 shadow-2xl">
+                    <div className="flex items-center justify-between px-6 h-16 max-w-7xl mx-auto font-inter tracking-tight">
+                        <Link to="/" className="flex items-center gap-2">
+                            <span className="material-symbols-outlined text-blue-500" style={{ fontVariationSettings: "'FILL' 1" }}>rocket_launch</span>
+                            <span className="text-xl font-bold tracking-tighter text-slate-50 dark:text-white">RankersKit</span>
+                        </Link>
+                        <nav className="hidden md:flex items-center gap-8">
+                            <Link to="/features" className="text-slate-400 hover:text-slate-100 hover:bg-white/5 transition-all duration-300 px-3 py-2 rounded-md">Features</Link>
+                            <Link to="/how-it-works" className="text-slate-400 hover:text-slate-100 hover:bg-white/5 transition-all duration-300 px-3 py-2 rounded-md">How It Works</Link>
+                            <Link to="/pricing" className="text-slate-400 hover:text-slate-100 hover:bg-white/5 transition-all duration-300 px-3 py-2 rounded-md">Pricing</Link>
+                        </nav>
+                        <div className="flex gap-2">
+                            <Link to="/login" className="hidden sm:block text-slate-400 hover:text-white px-4 py-2 font-semibold text-sm transition-all">Login</Link>
+                            <Link to="/signup">
+                                <button className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-md font-semibold text-sm transition-all duration-300 active:scale-95 inner-glow shadow-[0_0_15px_rgba(37,99,235,0.3)] hover:shadow-[0_0_20px_rgba(37,99,235,0.5)]">
+                                    Get Started
+                                </button>
+                            </Link>
+                        </div>
+                    </div>
+                </header>
+            );
+        };
+
+        const Footer = () => (
+            <footer className="w-full py-12 px-6 border-t border-white/5 bg-slate-950 mt-auto z-10 relative">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-8 max-w-7xl mx-auto">
+                    <div className="flex flex-col gap-4 col-span-1 md:col-span-2">
+                        <span className="text-lg font-black text-slate-50">RankersKit</span>
+                        <p className="font-inter text-sm text-slate-400">© 2024 RankersKit. For the elite 1%.</p>
+                    </div>
+                    <div className="col-span-1 md:col-span-2 flex justify-end items-start">
+                        <div className="flex flex-wrap gap-4 font-inter text-sm text-slate-400 md:justify-end">
+                            <Link to="/features" className="text-slate-500 hover:text-blue-400 transition-colors cursor-pointer">Features</Link>
+                            <Link to="/pricing" className="text-slate-500 hover:text-blue-400 transition-colors cursor-pointer">Pricing</Link>
+                            <a href="#" className="text-slate-500 hover:text-blue-400 transition-colors cursor-pointer">Success Stories</a>
+                            <a href="#" className="text-slate-500 hover:text-blue-400 transition-colors cursor-pointer">Privacy</a>
+                        </div>
+                    </div>
+                </div>
+            </footer>
+        );
+
+        // --- Pages ---
+
+        const HomePage = () => {
+            return (
+                <div className="flex flex-col min-h-screen">
+                    <Header />
+                    <main className="flex-grow pt-16 relative">
+                        <section className="relative pt-xl pb-lg px-6 overflow-hidden flex flex-col items-center justify-center min-h-[795px]">
+                            <div className="absolute inset-0 bg-grid-pattern opacity-50 z-0"></div>
+                            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-primary/20 rounded-full blur-[120px] pointer-events-none z-0"></div>
+                            <div className="relative z-10 max-w-container-max mx-auto text-center flex flex-col items-center">
+                                <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-primary/30 bg-primary/10 text-primary mb-8 backdrop-blur-sm">
+                                    <span className="material-symbols-outlined text-sm" style={{ fontVariationSettings: "'FILL' 1" }}>bolt</span>
+                                    <span className="font-label-caps text-label-caps uppercase tracking-widest">Elite Problem Solving</span>
+                                </div>
+                                <h1 className="font-display text-display text-on-background mb-6 max-w-4xl mx-auto glow-text">
+                                    Don’t just solve.<br/>
+                                    <span className="text-primary">Think like a ranker.</span>
+                                </h1>
+                                <p className="font-body-lg text-body-lg text-on-surface-variant max-w-2xl mx-auto mb-lg">
+                                    Every question teaches you the fastest way — not just the textbook way. Master the shortcuts that separate the top 1% from the rest.
+                                </p>
+                                <div className="flex flex-col sm:flex-row gap-4 mb-xl">
+                                    <Link to="/signup">
+                                        <button className="bg-primary text-on-primary px-8 py-4 rounded-lg font-h2 text-h2 hover:shadow-[0_0_20px_rgba(173,198,255,0.4)] transition-all duration-300">
+                                            Start Practicing Free
+                                        </button>
+                                    </Link>
+                                    <Link to="/how-it-works">
+                                        <button className="border border-outline text-on-surface px-8 py-4 rounded-lg font-h2 text-h2 hover:bg-surface-variant transition-colors flex items-center justify-center gap-2">
+                                            <span className="material-symbols-outlined">play_circle</span>
+                                            See How It Works
+                                        </button>
+                                    </Link>
+                                </div>
+                            </div>
+                        </section>
+                    </main>
+                    <Footer />
+                </div>
+            );
+        };
+
+        const PricingPage = () => {
+            return (
+                <div className="flex flex-col min-h-screen relative">
+                    <div className="fixed top-0 left-1/2 -translate-x-1/2 w-[800px] h-[800px] bg-secondary-container/10 rounded-full blur-[120px] pointer-events-none -z-10"></div>
+                    <div className="fixed bottom-0 left-0 w-[600px] h-[600px] bg-primary-container/5 rounded-full blur-[100px] pointer-events-none -z-10"></div>
+                    <Header />
+                    <main className="flex-grow pt-[120px] pb-xl flex flex-col items-center justify-center px-gutter relative z-10">
+                        <div className="text-center mb-xl max-w-2xl mx-auto">
+                            <h1 className="font-display text-display mb-sm text-on-surface">Invest in your <span className="text-gradient">performance.</span></h1>
+                            <p className="font-body-lg text-body-lg text-on-surface-variant">Simple, transparent pricing for high-achievers. Choose the plan that accelerates your journey.</p>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-lg max-w-[1000px] w-full">
+                            {/* Free Plan */}
+                            <div className="bg-surface-container-low border border-outline-variant/30 rounded-xl p-lg flex flex-col relative overflow-hidden inner-glow transition-transform hover:-translate-y-1 duration-300">
+                                <div className="mb-lg">
+                                    <h2 className="font-h2 text-h2 text-on-surface mb-xs">Free Plan</h2>
+                                    <p className="font-body-md text-body-md text-on-surface-variant">Get started and explore the platform</p>
+                                    <div className="mt-md flex items-baseline gap-xs">
+                                        <span className="font-display text-display text-on-surface">50 Credits</span>
+                                        <span className="font-body-md text-body-md text-on-surface-variant">/month</span>
+                                    </div>
+                                    <div className="mt-2 text-sm text-on-surface-variant font-medium">$0 / month · <span className="text-primary/80">1 question = 1 credit</span></div>
+                                </div>
+                                <div className="flex-grow">
+                                    <ul className="space-y-sm opacity-80">
+                                        <li className="flex items-start gap-sm"><span className="material-symbols-outlined text-primary text-sm mt-1">check</span><span className="font-body-md text-body-md text-on-surface text-sm">Limited practice</span></li>
+                                        <li className="flex items-start gap-sm"><span className="material-symbols-outlined text-primary text-sm mt-1">check</span><span className="font-body-md text-body-md text-on-surface text-sm">Basic solutions</span></li>
+                                    </ul>
+                                </div>
+                                <div className="mt-lg pt-lg border-t border-outline-variant/30">
+                                    <Link to="/signup"><button className="w-full py-sm px-md rounded-lg border border-outline-variant text-on-surface hover:bg-surface-container-highest transition-colors font-body-md text-body-md">Start Free</button></Link>
+                                </div>
+                            </div>
+                            {/* Pro Plan */}
+                            <div className="bg-surface-container border border-primary/50 rounded-xl p-lg flex flex-col relative overflow-hidden inner-glow shadow-[0_0_40px_-15px_rgba(75,142,255,0.2)] transition-transform hover:-translate-y-1 duration-300">
+                                <div className="absolute -top-20 -right-20 w-40 h-40 bg-primary/20 blur-[50px] rounded-full pointer-events-none"></div>
+                                <div className="absolute top-0 right-0 bg-primary text-on-primary px-sm py-xs rounded-bl-lg font-label-caps text-label-caps">RECOMMENDED</div>
+                                <div className="mb-lg">
+                                    <h2 className="font-h2 text-h2 text-primary mb-xs">Pro Plan</h2>
+                                    <p className="font-body-md text-body-md text-on-surface-variant">For serious aspirants who want an edge</p>
+                                    <div className="mt-md flex items-baseline gap-xs">
+                                        <span className="font-display text-display text-on-surface">1000 Credits</span>
+                                        <span className="font-body-md text-body-md text-on-surface-variant">/month</span>
+                                    </div>
+                                    <div className="mt-2 text-sm text-on-surface-variant font-medium">Rs 99 / month · <span className="text-primary/80">1 question = 1 credit</span></div>
+                                </div>
+                                <div className="flex-grow">
+                                    <ul className="space-y-sm opacity-80">
+                                        <li className="flex items-start gap-sm"><span className="material-symbols-outlined text-primary text-sm mt-1">check_circle</span><span className="font-body-md text-body-md text-on-surface text-sm">Large credit pool</span></li>
+                                        <li className="flex items-start gap-sm"><span className="material-symbols-outlined text-primary text-sm mt-1">check_circle</span><span className="font-body-md text-body-md text-on-surface text-sm">Full access to shortcuts</span></li>
+                                    </ul>
+                                </div>
+                                <div className="mt-lg pt-lg border-t border-outline-variant/30">
+                                    <Link to="/signup"><button className="w-full py-sm px-md rounded-lg bg-primary text-on-primary hover:bg-primary-fixed-dim transition-colors font-body-md text-body-md font-semibold glow-hover">Upgrade to Pro</button></Link>
+                                </div>
+                            </div>
+                        </div>
+                    </main>
+                    <Footer />
+                </div>
+            );
+        };
+
+        const HowItWorksPage = () => {
+            return (
+                <div className="flex flex-col min-h-screen relative">
+                    <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
+                        <div className="absolute top-[-20%] left-[-10%] w-[50vw] h-[50vw] rounded-full bg-secondary-container/10 blur-[120px]"></div>
+                        <div className="absolute bottom-[-20%] right-[-10%] w-[60vw] h-[60vw] rounded-full bg-primary-container/10 blur-[150px]"></div>
+                    </div>
+                    <Header />
+                    <main className="flex-grow z-10 pt-24 pb-xl px-6">
+                        <div className="max-w-[1200px] mx-auto space-y-xl">
+                            <section className="text-center pt-lg pb-md relative">
+                                <div className="inline-block mb-sm">
+                                    <span className="font-label-caps text-label-caps text-secondary tracking-[0.2em] uppercase px-3 py-1 rounded-full border border-secondary/20 bg-secondary/5">The Methodology</span>
+                                </div>
+                                <h1 className="font-display text-display text-on-surface mb-sm glow-text">
+                                    Engineer Your <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-secondary">Advantage</span>
+                                </h1>
+                            </section>
+                            <section className="grid grid-cols-1 md:grid-cols-2 gap-6 relative">
+                                <div className="glass-panel rounded-xl p-8">
+                                    <h2 className="font-h2 text-h2 text-on-surface mb-xs">Train for Speed.</h2>
+                                    <p className="font-body-md text-body-md text-on-surface-variant">Immerse yourself in hyper-realistic simulated environments.</p>
+                                </div>
+                                <div className="glass-panel rounded-xl p-8">
+                                    <h2 className="font-h2 text-h2 text-on-surface mb-xs">Bypass the Standard.</h2>
+                                    <p className="font-body-md text-body-md text-on-surface-variant">Access proprietary frameworks and mental models.</p>
+                                </div>
+                            </section>
+                        </div>
+                    </main>
+                    <Footer />
+                </div>
+            );
+        };
+
+        const FeaturesPage = () => {
+            return (
+                <div className="flex flex-col min-h-screen relative">
+                    <Header />
+                    <main className="flex-grow pt-[104px] pb-xl flex flex-col gap-xl relative overflow-hidden">
+                        <section className="max-w-container-max mx-auto px-6 w-full text-center flex flex-col items-center gap-md">
+                            <span className="font-label-caps text-label-caps text-secondary tracking-[0.2em] uppercase px-3 py-1 rounded-full border border-secondary/30 bg-secondary/10">The Elite Edge</span>
+                            <h1 className="font-display text-display text-on-surface max-w-4xl mx-auto">
+                                Precision-Engineered for <br/> <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-secondary">Peak Performance</span>
+                            </h1>
+                        </section>
+                    </main>
+                    <Footer />
+                </div>
+            );
+        };
+
+        const LoginPage = () => {
+            return (
+                <div className="flex items-center justify-center min-h-screen p-md relative overflow-hidden">
+                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-secondary-container/20 rounded-full blur-[120px] pointer-events-none"></div>
+                    <main className="relative z-10 w-full max-w-[440px] bg-surface-container-lowest/60 backdrop-blur-xl border-t border-l border-white/5 rounded-xl p-lg shadow-2xl flex flex-col gap-lg">
+                        <header className="flex flex-col items-center text-center gap-xs">
+                            <h1 className="font-h2 text-h2 text-on-surface">Sign in to RankersKit</h1>
+                        </header>
+                        <form className="flex flex-col gap-md" onSubmit={(e) => e.preventDefault()}>
+                            <div className="flex flex-col gap-xs">
+                                <label className="font-label-caps text-label-caps text-on-surface-variant">Email</label>
+                                <input className="bg-transparent border-0 border-b border-outline-variant/50 py-3 text-on-surface focus:border-primary-container focus:outline-none" type="email" placeholder="name@company.com" />
+                            </div>
+                            <div className="flex flex-col gap-xs">
+                                <label className="font-label-caps text-label-caps text-on-surface-variant">Password</label>
+                                <input className="bg-transparent border-0 border-b border-outline-variant/50 py-3 text-on-surface focus:border-primary-container focus:outline-none" type="password" placeholder="••••••••" />
+                            </div>
+                            <Link to="/">
+                                <button className="mt-sm w-full py-4 rounded-lg bg-primary-container text-on-primary-container font-h2 text-h2 !text-[16px]">Sign In</button>
+                            </Link>
+                        </form>
+                        <p className="text-center text-sm text-on-surface-variant">
+                            Don't have an account? <Link to="/signup" className="text-primary hover:text-primary-fixed">Apply for access</Link>
+                        </p>
+                        <p className="text-center text-xs mt-4"><Link to="/">Back to Home</Link></p>
+                    </main>
+                </div>
+            );
+        };
+
+        const SignupPage = () => {
+            return (
+                <div className="flex items-center justify-center min-h-screen p-md relative overflow-hidden">
+                    <div className="absolute w-[80vw] h-[80vw] bg-secondary-container/20 rounded-full blur-[100px] top-[-20%] right-[-10%] mix-blend-screen pointer-events-none"></div>
+                    <main className="relative z-10 w-full max-w-[440px] bg-surface-container/60 backdrop-blur-[20px] rounded-xl border border-white/5 p-lg shadow-2xl">
+                        <div className="relative z-10 flex flex-col items-center mb-lg">
+                            <h1 className="font-h2 text-h2 text-on-surface text-center mb-xs">Join RankersKit</h1>
+                        </div>
+                        <form className="flex flex-col gap-md" onSubmit={(e) => e.preventDefault()}>
+                            <input className="bg-surface-container-lowest text-on-surface border-b border-surface-variant px-4 py-3 outline-none focus:border-inverse-primary" type="text" placeholder="Full Name" />
+                            <input className="bg-surface-container-lowest text-on-surface border-b border-surface-variant px-4 py-3 outline-none focus:border-inverse-primary" type="email" placeholder="Email Address" />
+                            <input className="bg-surface-container-lowest text-on-surface border-b border-surface-variant px-4 py-3 outline-none focus:border-inverse-primary" type="password" placeholder="Password" />
+                            <Link to="/">
+                                <button className="mt-sm w-full bg-inverse-primary text-white font-semibold py-3 px-6 rounded-DEFAULT">Start Practicing</button>
+                            </Link>
+                        </form>
+                        <div className="mt-lg text-center">
+                            <Link to="/login" className="text-sm text-on-surface-variant hover:text-inverse-primary">Already have an account? Log in</Link>
+                        </div>
+                         <p className="text-center text-xs mt-4"><Link to="/">Back to Home</Link></p>
+                    </main>
+                </div>
+            );
+        };
+
+        // --- App ---
+
+        const App = () => {
+            return (
+                <MemoryRouter>
+                    <Routes>
+                        <Route path="/" element={<HomePage />} />
+                        <Route path="/pricing" element={<PricingPage />} />
+                        <Route path="/how-it-works" element={<HowItWorksPage />} />
+                        <Route path="/features" element={<FeaturesPage />} />
+                        <Route path="/login" element={<LoginPage />} />
+                        <Route path="/signup" element={<SignupPage />} />
+                    </Routes>
+                </MemoryRouter>
+            );
+        };
+
+        const root = createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>

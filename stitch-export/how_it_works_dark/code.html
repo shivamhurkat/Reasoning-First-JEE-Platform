@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>How It Works - RankersKit</title>
+<!-- Google Fonts: Inter -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&amp;display=swap" rel="stylesheet"/>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Theme Configuration -->
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "inverse-primary": "#005bc1",
+                        "surface-variant": "#333539",
+                        "error": "#ffb4ab",
+                        "surface-dim": "#111318",
+                        "on-secondary-container": "#ddb7ff",
+                        "tertiary-fixed": "#ffdcc3",
+                        "on-primary-fixed": "#001a41",
+                        "on-surface-variant": "#c1c6d7",
+                        "on-tertiary-fixed-variant": "#6e3900",
+                        "primary-fixed": "#d8e2ff",
+                        "background": "#111318",
+                        "primary-fixed-dim": "#adc6ff",
+                        "tertiary-fixed-dim": "#ffb77d",
+                        "on-secondary-fixed-variant": "#6900b3",
+                        "on-tertiary-container": "#432100",
+                        "outline-variant": "#414755",
+                        "surface-container-highest": "#333539",
+                        "on-error": "#690005",
+                        "primary-container": "#4b8eff",
+                        "secondary-container": "#7900cd",
+                        "on-tertiary": "#4d2600",
+                        "surface-container-lowest": "#0c0e12",
+                        "primary": "#adc6ff",
+                        "surface-container-low": "#1a1c20",
+                        "on-primary": "#002e69",
+                        "inverse-on-surface": "#2f3035",
+                        "on-tertiary-fixed": "#2f1500",
+                        "on-primary-container": "#00285c",
+                        "on-error-container": "#ffdad6",
+                        "surface-tint": "#adc6ff",
+                        "secondary-fixed-dim": "#ddb7ff",
+                        "secondary-fixed": "#f0dbff",
+                        "tertiary": "#ffb77d",
+                        "on-surface": "#e2e2e8",
+                        "error-container": "#93000a",
+                        "on-primary-fixed-variant": "#004493",
+                        "on-background": "#e2e2e8",
+                        "secondary": "#ddb7ff",
+                        "tertiary-container": "#cf7d30",
+                        "on-secondary-fixed": "#2c0050",
+                        "on-secondary": "#4a0080",
+                        "outline": "#8b90a0",
+                        "inverse-surface": "#e2e2e8",
+                        "surface-container-high": "#282a2e",
+                        "surface-container": "#1e2024",
+                        "surface": "#111318",
+                        "surface-bright": "#37393e"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "xl": "80px",
+                        "xs": "4px",
+                        "sm": "12px",
+                        "lg": "48px",
+                        "container-max": "1200px",
+                        "base": "8px",
+                        "md": "24px",
+                        "gutter": "24px"
+                    },
+                    "fontFamily": {
+                        "h1": ["Inter"],
+                        "body-md": ["Inter"],
+                        "h2": ["Inter"],
+                        "body-lg": ["Inter"],
+                        "display": ["Inter"],
+                        "label-caps": ["Inter"]
+                    },
+                    "fontSize": {
+                        "h1": ["32px", { "lineHeight": "1.2", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "body-md": ["16px", { "lineHeight": "1.6", "letterSpacing": "0", "fontWeight": "400" }],
+                        "h2": ["24px", { "lineHeight": "1.3", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+                        "body-lg": ["18px", { "lineHeight": "1.6", "letterSpacing": "0", "fontWeight": "400" }],
+                        "display": ["48px", { "lineHeight": "1.1", "letterSpacing": "-0.04em", "fontWeight": "700" }],
+                        "label-caps": ["12px", { "lineHeight": "1.0", "letterSpacing": "0.1em", "fontWeight": "600" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body {
+            background-color: theme('colors.background');
+            color: theme('colors.on-background');
+            -webkit-font-smoothing: antialiased;
+        }
+        /* Custom Utilities for Elite Aesthetic */
+        .glass-panel {
+            background: rgba(30, 32, 36, 0.4);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+            border-left: 1px solid rgba(255, 255, 255, 0.05);
+            border-right: 1px solid rgba(0, 0, 0, 0.2);
+            border-bottom: 1px solid rgba(0, 0, 0, 0.4);
+        }
+        .glow-text {
+            text-shadow: 0 0 20px rgba(173, 198, 255, 0.3);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col font-body-md text-body-md selection:bg-primary-container selection:text-on-primary-container relative bg-surface">
+<!-- Ambient Background Glow -->
+<div class="fixed inset-0 z-0 pointer-events-none overflow-hidden">
+<div class="absolute top-[-20%] left-[-10%] w-[50vw] h-[50vw] rounded-full bg-secondary-container/10 blur-[120px]"></div>
+<div class="absolute bottom-[-20%] right-[-10%] w-[60vw] h-[60vw] rounded-full bg-primary-container/10 blur-[150px]"></div>
+</div>
+<!-- TopAppBar -->
+<nav class="bg-surface/80 backdrop-blur-xl font-inter tracking-tight fixed top-0 w-full z-50 border-b border-white/10 shadow-2xl">
+<div class="flex items-center justify-between px-6 h-16 max-w-7xl mx-auto">
+<div class="flex items-center gap-sm">
+<span class="material-symbols-outlined text-primary" style="font-variation-settings: 'FILL' 1;">rocket_launch</span>
+<span class="text-xl font-bold tracking-tighter text-on-surface">RankersKit</span>
+</div>
+<div>
+<button class="bg-primary text-on-primary font-label-caps text-label-caps px-4 py-2 rounded-DEFAULT hover:bg-primary-fixed transition-colors active:scale-95 duration-200 shadow-[0_0_15px_rgba(173,198,255,0.3)]">
+                    Get Started
+                </button>
+</div>
+</div>
+</nav>
+<!-- Main Content Canvas -->
+<main class="flex-grow z-10 pt-24 pb-xl px-6">
+<div class="max-w-[1200px] mx-auto space-y-xl">
+<!-- Hero Section -->
+<section class="text-center pt-lg pb-md relative">
+<div class="inline-block mb-sm">
+<span class="font-label-caps text-label-caps text-secondary tracking-[0.2em] uppercase px-3 py-1 rounded-full border border-secondary/20 bg-secondary/5">
+                        The Methodology
+                    </span>
+</div>
+<h1 class="font-display text-display text-on-surface mb-sm glow-text">
+                    Engineer Your <span class="text-transparent bg-clip-text bg-gradient-to-r from-primary to-secondary">Advantage</span>
+</h1>
+<p class="font-body-lg text-body-lg text-on-surface-variant max-w-2xl mx-auto">
+                    We don't teach. We condition. A relentless cycle of execution, microscopic analysis, and strategic bypassing designed to construct an insurmountable edge over the competition.
+                </p>
+</section>
+<!-- The Process Bento Grid -->
+<section class="grid grid-cols-1 md:grid-cols-12 gap-6 relative">
+<!-- Step 1: Practice -->
+<div class="md:col-span-7 glass-panel rounded-xl p-8 relative group overflow-hidden transition-all duration-500 hover:border-primary/30">
+<div class="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+<div class="relative z-10 flex flex-col h-full justify-between">
+<div class="mb-lg flex items-start justify-between">
+<div class="w-12 h-12 rounded-lg bg-surface flex items-center justify-center border border-white/5 shadow-inner">
+<span class="material-symbols-outlined text-primary text-[28px]">sports_esports</span>
+</div>
+<span class="font-display text-[64px] leading-none text-primary font-black opacity-30 select-none glow-text">01</span>
+</div>
+<div>
+<h2 class="font-h2 text-h2 text-on-surface mb-xs">Train for Speed. Eliminate Guesswork.</h2>
+<p class="font-body-md text-body-md text-on-surface-variant">
+                                Immerse yourself in hyper-realistic, high-pressure simulated environments. Execution becomes reflex. We track every keystroke, every decision latency.
+                            </p>
+</div>
+</div>
+</div>
+<!-- Step 2: Analyze -->
+<div class="md:col-span-5 glass-panel rounded-xl p-8 relative group overflow-hidden transition-all duration-500 hover:border-secondary/30">
+<div class="absolute inset-0 bg-gradient-to-br from-secondary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+<div class="relative z-10 flex flex-col h-full justify-between">
+<div class="mb-lg flex items-start justify-between">
+<div class="w-12 h-12 rounded-lg bg-surface flex items-center justify-center border border-white/5 shadow-inner">
+<span class="material-symbols-outlined text-secondary text-[28px]">troubleshoot</span>
+</div>
+<span class="font-display text-[64px] leading-none text-secondary font-black opacity-30 select-none glow-text">02</span>
+</div>
+<div>
+<h2 class="font-h2 text-h2 text-on-surface mb-xs">Expose Weakness. Optimize Every Second.</h2>
+<p class="font-body-md text-body-md text-on-surface-variant">
+                                Brutal, unbiased dissection of your performance telemetry. We isolate failure points at the millisecond level.
+                            </p>
+</div>
+</div>
+</div>
+<!-- Step 3: Shortcuts -->
+<div class="md:col-span-5 glass-panel rounded-xl p-8 relative group overflow-hidden transition-all duration-500 hover:border-tertiary/30">
+<div class="absolute inset-0 bg-gradient-to-br from-tertiary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+<div class="relative z-10 flex flex-col h-full justify-between">
+<div class="mb-lg flex items-start justify-between">
+<div class="w-12 h-12 rounded-lg bg-surface flex items-center justify-center border border-white/5 shadow-inner">
+<span class="material-symbols-outlined text-tertiary text-[28px]">route</span>
+</div>
+<span class="font-display text-[64px] leading-none text-tertiary font-black opacity-30 select-none glow-text">03</span>
+</div>
+<div>
+<h2 class="font-h2 text-h2 text-on-surface mb-xs">Bypass the Standard. Master the Shortcut.</h2>
+<p class="font-body-md text-body-md text-on-surface-variant">
+                                Access the proprietary frameworks and mental models used by the top 1%. Bypass the standard, inefficient learning curves.
+                            </p>
+</div>
+</div>
+</div>
+<!-- Step 4: Performance -->
+<div class="md:col-span-7 glass-panel rounded-xl p-8 relative group overflow-hidden transition-all duration-500 hover:border-primary-container/50">
+<div class="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1557683316-973673baf926?q=80&amp;w=2029&amp;auto=format&amp;fit=crop')] bg-cover bg-center opacity-5 mix-blend-overlay" data-alt="abstract dark network background with glowing nodes and connections representing data and performance growth"></div>
+<div class="absolute inset-0 bg-gradient-to-r from-surface-container-low via-transparent to-transparent z-0"></div>
+<div class="relative z-10 flex flex-col h-full justify-between">
+<div class="mb-lg flex items-start justify-between">
+<div class="w-12 h-12 rounded-lg bg-primary-container/20 flex items-center justify-center border border-primary/30 shadow-[0_0_20px_rgba(75,142,255,0.2)]">
+<span class="material-symbols-outlined text-primary-container text-[28px]" style="font-variation-settings: 'FILL' 1;">trending_up</span>
+</div>
+<span class="font-display text-[64px] leading-none text-primary-container font-black opacity-30 select-none glow-text">04</span>
+</div>
+<div>
+<h2 class="font-h2 text-h2 text-on-surface mb-xs">Think Like a Ranker. Dominate the Exam.</h2>
+<p class="font-body-md text-body-md text-on-surface-variant">
+                                Re-enter the arena with an upgraded operational capacity. The cycle repeats, pushing your baseline performance into the realm of the elite.
+                            </p>
+</div>
+</div>
+</div>
+</section>
+<!-- The Edge Highlight -->
+<section class="mt-xl border-t border-white/5 pt-xl">
+<div class="glass-panel rounded-xl p-md md:p-xl text-center relative overflow-hidden">
+<div class="absolute top-0 left-1/2 -translate-x-1/2 w-3/4 h-px bg-gradient-to-r from-transparent via-primary to-transparent opacity-50"></div>
+<span class="material-symbols-outlined text-[48px] text-surface-variant mb-sm block">diamond</span>
+<h2 class="font-display text-h1 md:text-[40px] text-on-surface mb-sm">The Delta is Everything.</h2>
+<p class="font-body-lg text-body-lg text-on-surface-variant max-w-3xl mx-auto mb-lg">
+                        Standard preparation yields standard results. The RankersKit methodology is engineered specifically to widen the delta between you and the mean. It is the architecture of an unfair advantage.
+                    </p>
+<button class="bg-primary text-on-primary font-label-caps text-label-caps px-8 py-4 rounded-DEFAULT hover:bg-primary-fixed transition-all duration-300 shadow-[0_0_30px_rgba(173,198,255,0.15)] hover:shadow-[0_0_40px_rgba(173,198,255,0.3)] tracking-widest w-full md:w-auto">
+                        START PRACTICING NOW
+                    </button>
+</div>
+</section>
+</div>
+</main>
+<!-- Footer -->
+<footer class="bg-surface-container-lowest font-inter text-sm text-on-surface-variant w-full py-12 px-6 border-t border-t border-white/5 shadow-none mt-auto z-10 relative">
+<div class="grid grid-cols-1 md:grid-cols-4 gap-8 max-w-7xl mx-auto">
+<div class="col-span-1 md:col-span-1 flex flex-col justify-between">
+<span class="text-lg font-black text-on-surface mb-4">RankersKit</span>
+<p class="text-xs text-on-surface-variant/60 mt-auto">© 2024 RankersKit. For the elite 1%.</p>
+</div>
+<div class="col-span-1 md:col-span-3 flex flex-wrap gap-x-8 gap-y-4 md:justify-end">
+<a class="text-on-surface-variant hover:text-primary transition-colors cursor-pointer" href="#">Curriculum</a>
+<a class="text-on-surface-variant hover:text-primary transition-colors cursor-pointer" href="#">Pricing</a>
+<a class="text-on-surface-variant hover:text-primary transition-colors cursor-pointer" href="#">Success Stories</a>
+<a class="text-on-surface-variant hover:text-primary transition-colors cursor-pointer" href="#">Privacy</a>
+</div>
+</div>
+</footer>
+</body></html>
