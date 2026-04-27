@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
+import { getReferralConfig } from "@/lib/queries/config"
 import SignupForm from "./signup-form"
 
 export default async function SignupPage() {
@@ -12,5 +13,7 @@ export default async function SignupPage() {
     redirect("/dashboard")
   }
 
-  return <SignupForm />
+  const referralConfig = await getReferralConfig()
+
+  return <SignupForm referralEnabled={referralConfig.enabled} bonusCredits={referralConfig.bonus_credits} />
 }

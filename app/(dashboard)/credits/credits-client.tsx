@@ -1,26 +1,23 @@
 "use client"
 
 import { useCallback, useState, useTransition } from "react"
+import Link from "next/link"
 import Script from "next/script"
 import { useSearchParams } from "next/navigation"
 import { toast } from "sonner"
 import {
   CheckCircle2,
   Coins,
-  Copy,
   Gift,
   History,
-  Share2,
   Sparkles,
   TrendingUp,
-  Users,
   Zap,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { createClient } from "@/lib/supabase/client"
+import type { TopupPackage, ProTierConfig } from "@/lib/queries/config"
 import { format } from "date-fns"
-
-// ---------- Types ----------
 
 type CreditTransaction = {
   id: string
@@ -31,15 +28,9 @@ type CreditTransaction = {
   created_at: string
 }
 
-type ReferralStat = {
-  count: number
-  credits_earned: number
-}
-
 type UserData = {
   credit_balance: number
   plan: string
-  referral_code: string
   email: string
 }
 
@@ -118,42 +109,24 @@ async function openRazorpayCheckout({
 export default function CreditsPageClient({
   initialData,
   initialTransactions,
-  initialReferralStats,
-  appUrl,
+  topupPackages,
+  proTierConfig,
 }: {
   initialData: UserData
   initialTransactions: CreditTransaction[]
-  initialReferralStats: ReferralStat
-  appUrl: string
+  topupPackages: TopupPackage[]
+  proTierConfig: ProTierConfig
 }) {
   const searchParams = useSearchParams()
   const rawTab = searchParams.get("tab")
-  const [activeTab, setActiveTab] = useState<"buy" | "history" | "refer">(
-    rawTab === "refer" ? "refer" : rawTab === "history" ? "history" : "buy"
+  const [activeTab, setActiveTab] = useState<"buy" | "history">(
+    rawTab === "history" ? "history" : "buy"
   )
   const [creditBalance, setCreditBalance] = useState(initialData.credit_balance)
   const [transactions, setTransactions] = useState(initialTransactions)
   const [page, setPage] = useState(0)
   const [loadingMore, startLoadMore] = useTransition()
   const supabase = createClient()
-
-  const referralLink = `${appUrl}/signup?ref=${initialData.referral_code}`
-
-  const handleCopy = useCallback(async () => {
-    try {
-      await navigator.clipboard.writeText(referralLink)
-      toast.success("Referral link copied!")
-    } catch {
-      toast.error("Could not copy link")
-    }
-  }, [referralLink])
-
-  const handleWhatsApp = useCallback(() => {
-    const msg = encodeURIComponent(
-      `Join me on RankersKit — the best JEE practice app! Sign up with my link and we both get 50 free credits:\n${referralLink}`
-    )
-    window.open(`https://wa.me/?text=${msg}`, "_blank")
-  }, [referralLink])
 
   const handleLoadMore = useCallback(() => {
     startLoadMore(async () => {
@@ -204,6 +177,20 @@ export default function CreditsPageClient({
       />
 
       <div className="grid gap-6">
+        {/* Referral banner */}
+        <Link
+          href="/referral"
+          className="flex items-center justify-between gap-3 rounded-xl border border-emerald-500/30 bg-emerald-500/5 px-4 py-3 hover:bg-emerald-500/10 transition-colors"
+        >
+          <div className="flex items-center gap-2.5">
+            <Gift className="size-5 shrink-0 text-emerald-600" />
+            <p className="text-sm font-medium text-emerald-800 dark:text-emerald-300">
+              Earn free credits! Refer a friend
+            </p>
+          </div>
+          <span className="text-xs font-semibold text-emerald-600 whitespace-nowrap">→</span>
+        </Link>
+
         {/* Header */}
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Credits</h1>
@@ -238,9 +225,9 @@ export default function CreditsPageClient({
 
         {/* Tabs */}
         <div className="flex rounded-xl border bg-muted/30 p-1 gap-1">
-          {(["buy", "history", "refer"] as const).map((tab) => {
-            const icons = { buy: Zap, history: History, refer: Gift }
-            const labels = { buy: "Buy Credits", history: "Usage History", refer: "Refer & Earn" }
+          {(["buy", "history"] as const).map((tab) => {
+            const icons = { buy: Zap, history: History }
+            const labels = { buy: "Buy Credits", history: "Usage History" }
             const Icon = icons[tab]
             return (
               <button
@@ -256,7 +243,7 @@ export default function CreditsPageClient({
               >
                 <Icon className="size-4 shrink-0" />
                 <span className="hidden sm:inline">{labels[tab]}</span>
-                <span className="sm:hidden">{tab === "buy" ? "Buy" : tab === "history" ? "History" : "Refer"}</span>
+                <span className="sm:hidden">{tab === "buy" ? "Buy" : "History"}</span>
               </button>
             )
           })}
@@ -268,6 +255,8 @@ export default function CreditsPageClient({
             plan={initialData.plan}
             email={initialData.email}
             onSuccess={handlePurchaseSuccess}
+            topupPackages={topupPackages}
+            proTierConfig={proTierConfig}
           />
         )}
 
@@ -277,17 +266,6 @@ export default function CreditsPageClient({
             transactions={transactions}
             onLoadMore={handleLoadMore}
             loadingMore={loadingMore}
-          />
-        )}
-
-        {/* Tab: Refer & Earn */}
-        {activeTab === "refer" && (
-          <ReferTab
-            referralCode={initialData.referral_code}
-            referralLink={referralLink}
-            stats={initialReferralStats}
-            onCopy={handleCopy}
-            onWhatsApp={handleWhatsApp}
           />
         )}
       </div>
@@ -301,17 +279,20 @@ function BuyTab({
   plan,
   email,
   onSuccess,
+  topupPackages,
+  proTierConfig,
 }: {
   plan: string
   email: string
   onSuccess: (newBalance: number) => void
+  topupPackages: TopupPackage[]
+  proTierConfig: ProTierConfig
 }) {
-  const packages = [
-    { credits: 50, price: 29, popular: false },
-    { credits: 100, price: 49, popular: true },
-    { credits: 250, price: 99, popular: false },
-    { credits: 500, price: 179, popular: false },
-  ]
+  const packages = topupPackages.map((pkg, i) => ({
+    credits: pkg.credits,
+    price: pkg.price_inr,
+    popular: pkg.popular ?? i === 1,
+  }))
 
   return (
     <div className="grid gap-5">
@@ -325,10 +306,10 @@ function BuyTab({
                 <span className="font-semibold text-amber-900 dark:text-amber-400">Go Pro</span>
                 <span className="rounded-full bg-amber-500/20 px-2 py-0.5 text-xs font-bold text-amber-700">BEST VALUE</span>
               </div>
-              <p className="text-2xl font-bold">₹99<span className="text-sm font-normal text-muted-foreground">/month</span></p>
+              <p className="text-2xl font-bold">₹{proTierConfig.price_inr}<span className="text-sm font-normal text-muted-foreground">/month</span></p>
               <ul className="mt-3 grid gap-1.5">
                 {[
-                  "1,000 credits every month",
+                  `${proTierConfig.monthly_credits.toLocaleString()} credits every month`,
                   "Priority support",
                   "Early access to new features",
                 ].map((f) => (
@@ -344,7 +325,7 @@ function BuyTab({
             type="button"
             onClick={() =>
               openRazorpayCheckout({
-                amount_inr: 99,
+                amount_inr: proTierConfig.price_inr,
                 plan: "pro_monthly",
                 email,
                 onSuccess,
@@ -352,7 +333,7 @@ function BuyTab({
             }
             className="mt-4 w-full rounded-xl bg-amber-500 py-3 text-sm font-semibold text-white hover:bg-amber-600 transition-colors min-h-[48px]"
           >
-            Subscribe — ₹99/month
+            Subscribe — ₹{proTierConfig.price_inr}/month
           </button>
         </div>
       )}
@@ -402,21 +383,6 @@ function BuyTab({
             </button>
           ))}
         </div>
-      </div>
-
-      {/* Referral nudge */}
-      <div className="flex items-center gap-3 rounded-xl border bg-muted/30 px-4 py-3">
-        <Gift className="size-5 shrink-0 text-muted-foreground" />
-        <p className="text-sm text-muted-foreground">
-          Refer a friend and earn 50 free credits each.{" "}
-          <button
-            type="button"
-            onClick={() => {}}
-            className="text-primary underline underline-offset-4"
-          >
-            Share your link →
-          </button>
-        </p>
       </div>
     </div>
   )
@@ -522,105 +488,4 @@ function HistoryTab({
   )
 }
 
-// ---------- Refer Tab ----------
 
-function ReferTab({
-  referralCode,
-  referralLink,
-  stats,
-  onCopy,
-  onWhatsApp,
-}: {
-  referralCode: string
-  referralLink: string
-  stats: ReferralStat
-  onCopy: () => void
-  onWhatsApp: () => void
-}) {
-  return (
-    <div className="grid gap-5">
-      {/* How it works */}
-      <div className="rounded-xl border bg-card p-5">
-        <h2 className="mb-4 font-semibold">How it works</h2>
-        <div className="grid gap-3">
-          {[
-            { step: "1", text: "Share your referral link with a friend" },
-            { step: "2", text: "Friend signs up using your link" },
-            { step: "3", text: "You both get 50 free credits instantly!" },
-          ].map((s) => (
-            <div key={s.step} className="flex items-center gap-3">
-              <span className="inline-flex size-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
-                {s.step}
-              </span>
-              <p className="text-sm">{s.text}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Stats */}
-      <div className="grid grid-cols-2 gap-3">
-        <div className="rounded-xl border bg-card p-4 text-center">
-          <div className="flex items-center justify-center gap-1.5">
-            <Users className="size-4 text-muted-foreground" />
-          </div>
-          <p className="mt-1 text-2xl font-bold tabular-nums">{stats.count}</p>
-          <p className="text-xs text-muted-foreground">Friends referred</p>
-        </div>
-        <div className="rounded-xl border bg-card p-4 text-center">
-          <div className="flex items-center justify-center gap-1.5">
-            <Coins className="size-4 text-muted-foreground" />
-          </div>
-          <p className="mt-1 text-2xl font-bold tabular-nums">+{stats.credits_earned}</p>
-          <p className="text-xs text-muted-foreground">Credits earned</p>
-        </div>
-      </div>
-
-      {/* Referral code */}
-      <div className="rounded-xl border bg-card p-5">
-        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
-          Your referral code
-        </p>
-        <div className="flex items-center gap-2 rounded-lg border bg-muted/30 px-4 py-3">
-          <span className="flex-1 font-mono text-lg font-semibold tracking-wider">{referralCode}</span>
-          <button
-            type="button"
-            onClick={onCopy}
-            className="inline-flex items-center gap-1.5 rounded-md bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary hover:bg-primary/20 transition-colors"
-          >
-            <Copy className="size-3.5" />
-            Copy code
-          </button>
-        </div>
-      </div>
-
-      {/* Share link */}
-      <div className="rounded-xl border bg-card p-5">
-        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
-          Shareable link
-        </p>
-        <div className="flex items-center gap-2 rounded-lg border bg-muted/30 px-3 py-2.5 mb-3">
-          <span className="flex-1 text-xs text-muted-foreground truncate font-mono">{referralLink}</span>
-        </div>
-        <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={onCopy}
-            className="flex flex-1 items-center justify-center gap-2 rounded-xl border py-3 text-sm font-medium hover:bg-muted/50 transition-colors min-h-[48px]"
-          >
-            <Copy className="size-4" />
-            Copy link
-          </button>
-          <button
-            type="button"
-            onClick={onWhatsApp}
-            className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-emerald-600 py-3 text-sm font-medium text-white hover:bg-emerald-700 transition-colors min-h-[48px]"
-          >
-            <Share2 className="size-4" />
-            WhatsApp
-          </button>
-        </div>
-      </div>
-    </div>
-  )
-}

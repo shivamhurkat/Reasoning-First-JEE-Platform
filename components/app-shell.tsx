@@ -4,6 +4,7 @@ import Link from "next/link"
 import {
   BookOpen,
   Coins,
+  Gift,
   Home,
   LogOut,
   Settings,
@@ -30,6 +31,7 @@ const BASE_NAV: NavItem[] = [
   { href: "/practice", label: "Practice", icon: BookOpen },
   { href: "/progress", label: "Progress", icon: TrendingUp },
   { href: "/credits", label: "Credits", icon: Coins },
+  { href: "/referral", label: "Referral", icon: Gift },
   { href: "/settings", label: "Settings", icon: Settings },
 ]
 

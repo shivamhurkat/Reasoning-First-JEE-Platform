@@ -8,7 +8,7 @@ import { useMemo } from "react"
 import { cn } from "@/lib/utils"
 
 const ADMIN_NAV = [
-  { href: "/admin", label: "Dashboard" },
+  { href: "/admin/dashboard", label: "Dashboard" },
   { href: "/admin/subjects", label: "Curriculum" },
   { href: "/admin/questions", label: "Questions" },
   { href: "/admin/questions/new", label: "New Question" },

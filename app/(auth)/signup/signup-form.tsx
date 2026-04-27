@@ -27,6 +27,7 @@ const signupSchema = z
     confirm_password: z.string(),
     phone: z.string().trim().max(20).optional(),
     target_exam: z.enum(["JEE Mains", "JEE Advanced", "NEET", "Other"]).optional(),
+    referral_code: z.string().trim().max(20).optional(),
   })
   .refine((data) => data.password === data.confirm_password, {
     message: "Passwords don't match",
@@ -58,7 +59,13 @@ function GoogleIcon() {
   )
 }
 
-export default function SignupForm() {
+export default function SignupForm({
+  referralEnabled = true,
+  bonusCredits = 50,
+}: {
+  referralEnabled?: boolean
+  bonusCredits?: number
+}) {
   const supabase = createClient()
   const searchParams = useSearchParams()
   const [submitting, setSubmitting] = useState(false)
@@ -80,6 +87,7 @@ export default function SignupForm() {
       confirm_password: "",
       phone: "",
       target_exam: undefined,
+      referral_code: refCode,
     },
   })
 
@@ -126,10 +134,11 @@ export default function SignupForm() {
         console.warn("Failed to update profile:", profileError.message)
       }
 
-      // Process referral if a ref code was provided
-      if (refCode && data.user.id) {
+      // Process referral if a ref code was provided (URL param takes priority, then form field)
+      const codeToUse = refCode || values.referral_code?.trim() || ""
+      if (codeToUse && data.user.id) {
         try {
-          await processReferral(refCode, data.user.id)
+          await processReferral(codeToUse, data.user.id)
         } catch (err) {
           // Non-fatal — don't block signup
           console.warn("Referral processing failed:", err)
@@ -235,10 +244,10 @@ export default function SignupForm() {
             For the elite 1%.
           </p>
           {/* Referral banner */}
-          {refCode && (
+          {refCode && referralEnabled && (
             <div className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-emerald-500/15 px-3 py-1 text-xs font-medium text-emerald-400">
               <CheckCircle2 className="size-3" />
-              Referral code applied — you&apos;ll get 50 bonus credits!
+              Referral code applied — you&apos;ll get {bonusCredits} bonus credits!
             </div>
           )}
         </header>
@@ -411,6 +420,38 @@ export default function SignupForm() {
               <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 size-4 text-[#c1c6d7] pointer-events-none" />
             </div>
           </div>
+
+          {/* Referral Code (optional) — only shown if referral program is enabled */}
+          {referralEnabled && (
+          <div className="flex flex-col gap-1">
+            <label
+              htmlFor="referralCode"
+              className="text-xs font-semibold uppercase tracking-widest text-[#c1c6d7] ml-1"
+            >
+              Referral code{" "}
+              <span className="normal-case tracking-normal font-normal text-[#c1c6d7]/60">
+                (Optional)
+              </span>
+            </label>
+            {refCode && (
+              <div className="flex items-center gap-1.5 rounded-md bg-emerald-500/15 px-3 py-1.5 text-xs font-medium text-emerald-400 mb-1">
+                <CheckCircle2 className="size-3 shrink-0" />
+                Referral code applied — you&apos;ll get {bonusCredits} bonus credits!
+              </div>
+            )}
+            <input
+              id="referralCode"
+              type="text"
+              autoComplete="off"
+              placeholder="Enter code (e.g. ABC12345)"
+              {...register("referral_code")}
+              className="w-full bg-[#0c0e12] text-[#e2e2e8] text-sm border-b border-[#333539] rounded-t px-4 py-3 outline-none focus:border-[#005bc1] transition-colors placeholder:text-[#c1c6d7]/40 uppercase"
+            />
+            <p className="text-[10px] text-[#c1c6d7]/50 ml-1">
+              Got a code from a friend? Enter it to get {bonusCredits} bonus credits
+            </p>
+          </div>
+          )}
 
           {/* Submit */}
           <button

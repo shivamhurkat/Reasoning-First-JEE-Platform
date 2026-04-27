@@ -7,6 +7,7 @@ import {
   BookOpen,
   Calendar,
   Coins,
+  Gift,
   Home,
   LogOut,
   Menu,
@@ -73,6 +74,7 @@ export function BottomNav({ role }: { role: string }) {
 
   const isMoreActive =
     pathname === "/settings" ||
+    pathname === "/referral" ||
     (role === "admin" && pathname.startsWith("/admin"))
 
   return (
@@ -147,6 +149,15 @@ export function BottomNav({ role }: { role: string }) {
           </SheetHeader>
 
           <nav className="flex flex-col pb-[env(safe-area-inset-bottom)]">
+            <Link
+              href="/referral"
+              onClick={() => setMoreOpen(false)}
+              className="flex items-center gap-3 px-6 py-4 text-sm hover:bg-muted/50 transition-colors min-h-[44px]"
+            >
+              <Gift className="size-4 text-muted-foreground" />
+              Referral
+            </Link>
+
             <Link
               href="/settings"
               onClick={() => setMoreOpen(false)}

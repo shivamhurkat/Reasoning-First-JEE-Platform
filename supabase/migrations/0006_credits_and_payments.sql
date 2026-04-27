@@ -47,10 +47,10 @@ CREATE TABLE IF NOT EXISTS public.admin_config (
 -- 5. Seed admin_config (upsert so re-runs are safe)
 INSERT INTO public.admin_config (key, value) VALUES
   ('credit_costs',    '{"question_attempt": 1, "hint": 0}'::jsonb),
-  ('free_tier',       '{"monthly_credits": 10}'::jsonb),
+  ('free_tier',       '{"monthly_credits": 10, "signup_bonus_credits": 10}'::jsonb),
   ('pro_tier',        '{"monthly_credits": 1000, "price_inr": 99}'::jsonb),
   ('topup_packages',  '[{"credits":50,"price_inr":29},{"credits":100,"price_inr":49},{"credits":250,"price_inr":99},{"credits":500,"price_inr":179}]'::jsonb),
-  ('referral',        '{"bonus_credits": 50}'::jsonb)
+  ('referral',        '{"bonus_credits": 50, "enabled": true}'::jsonb)
 ON CONFLICT (key) DO NOTHING;
 
 -- 6. RLS policies

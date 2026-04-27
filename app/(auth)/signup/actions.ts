@@ -2,9 +2,18 @@
 
 import { createClient as createServiceClient } from "@supabase/supabase-js"
 import type { Database } from "@/lib/types/database.types"
+import { getReferralConfig } from "@/lib/queries/config"
 
 export async function processReferral(referralCode: string, newUserId: string): Promise<void> {
   if (!referralCode || !newUserId) return
+
+  // Read referral config from admin_config
+  const referralConfig = await getReferralConfig()
+
+  // If referral program is disabled, do nothing
+  if (!referralConfig.enabled) return
+
+  const bonusCredits = referralConfig.bonus_credits
 
   const serviceSupabase = createServiceClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -35,7 +44,7 @@ export async function processReferral(referralCode: string, newUserId: string): 
   await serviceSupabase.from("referrals").insert({
     referrer_id: referrer.id,
     referred_id: newUserId,
-    credits_awarded: 50,
+    credits_awarded: bonusCredits,
   } as never)
 
   // Update referred_by on new user
@@ -44,9 +53,9 @@ export async function processReferral(referralCode: string, newUserId: string): 
     .update({ referred_by: referrer.id } as never)
     .eq("id", newUserId)
 
-  // Add 50 credits to referrer
+  // Add bonus credits to referrer
   const referrerBalance = (referrer as unknown as { credit_balance?: number }).credit_balance ?? 0
-  const referrerNewBalance = referrerBalance + 50
+  const referrerNewBalance = referrerBalance + bonusCredits
 
   await serviceSupabase
     .from("user_profiles")
@@ -56,12 +65,12 @@ export async function processReferral(referralCode: string, newUserId: string): 
   await serviceSupabase.from("credit_transactions").insert({
     user_id: referrer.id,
     type: "referral_bonus",
-    amount: 50,
+    amount: bonusCredits,
     balance_after: referrerNewBalance,
     description: `Referral bonus — friend signed up`,
   } as never)
 
-  // Add 50 credits to new user (on top of signup bonus)
+  // Add bonus credits to new user (on top of signup bonus)
   const { data: newUserProfile } = await serviceSupabase
     .from("user_profiles")
     .select("credit_balance")
@@ -69,7 +78,7 @@ export async function processReferral(referralCode: string, newUserId: string): 
     .maybeSingle()
 
   const newUserBalance = (newUserProfile as unknown as { credit_balance?: number } | null)?.credit_balance ?? 10
-  const newUserNewBalance = newUserBalance + 50
+  const newUserNewBalance = newUserBalance + bonusCredits
 
   await serviceSupabase
     .from("user_profiles")
@@ -79,7 +88,7 @@ export async function processReferral(referralCode: string, newUserId: string): 
   await serviceSupabase.from("credit_transactions").insert({
     user_id: newUserId,
     type: "referral_bonus",
-    amount: 50,
+    amount: bonusCredits,
     balance_after: newUserNewBalance,
     description: `Referral bonus — signed up with referral code`,
   } as never)
