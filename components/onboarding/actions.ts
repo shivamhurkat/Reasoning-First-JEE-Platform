@@ -20,11 +20,20 @@ export async function saveOnboarding(data: OnboardingData = {}): Promise<{ ok: b
     return { ok: false, error: "Not authenticated" }
   }
 
-  const updatePayload: Record<string, unknown> = {
+
+  const updatePayload: {
+    onboarding_completed: boolean
+    onboarded_at: string
+    user_type?: OnboardingData["user_type"]
+    target_exam?: OnboardingData["target_exam"]
+    class_level?: OnboardingData["class_level"]
+    target_year?: OnboardingData["target_year"]
+    coaching_institute?: string | null
+    city?: string | null
+  } = {
     onboarding_completed: true,
     onboarded_at: new Date().toISOString(),
   }
-
   if (data.user_type) updatePayload.user_type = data.user_type
   if (data.target_exam) updatePayload.target_exam = data.target_exam
   if (data.class_level) updatePayload.class_level = data.class_level

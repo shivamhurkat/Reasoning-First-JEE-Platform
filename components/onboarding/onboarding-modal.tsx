@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useTransition } from "react"
-import { Check, X } from "lucide-react"
+import { Check } from "lucide-react"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import { saveOnboarding, type OnboardingData } from "./actions"
@@ -26,12 +26,12 @@ const USER_TYPE_OPTIONS: {
   label: string
   sub: string
 }[] = [
-  { value: "student", emoji: "🎓", label: "Student", sub: "Preparing for competitive exams" },
-  { value: "teacher", emoji: "👨‍🏫", label: "Teacher", sub: "I teach JEE/NEET subjects" },
-  { value: "contributor", emoji: "🏆", label: "Contributor", sub: "Cleared JEE/NEET, here to share shortcuts" },
-  { value: "parent", emoji: "👨‍👩‍👧", label: "Parent", sub: "Tracking my child's prep" },
-  { value: "other", emoji: "🔍", label: "Just Exploring", sub: "Checking things out" },
-]
+    { value: "student", emoji: "🎓", label: "Student", sub: "Preparing for competitive exams" },
+    { value: "teacher", emoji: "👨‍🏫", label: "Teacher", sub: "I teach JEE/NEET subjects" },
+    { value: "contributor", emoji: "🏆", label: "Contributor", sub: "Cleared JEE/NEET, here to share shortcuts" },
+    { value: "parent", emoji: "👨‍👩‍👧", label: "Parent", sub: "Tracking my child's prep" },
+    { value: "other", emoji: "🔍", label: "Just Exploring", sub: "Checking things out" },
+  ]
 
 // ─────────────────────────────────────────────
 // Reusable SelectCard
@@ -86,8 +86,8 @@ function ProgressDots({ total, current }: { total: number; current: number }) {
             i === current
               ? "w-6 h-2 bg-primary"
               : i < current
-              ? "w-2 h-2 bg-primary/40"
-              : "w-2 h-2 bg-muted-foreground/20"
+                ? "w-2 h-2 bg-primary/40"
+                : "w-2 h-2 bg-muted-foreground/20"
           )}
         />
       ))}
@@ -105,7 +105,7 @@ const EXAMS = ["JEE Mains", "JEE Advanced", "NEET"]
 const CLASS_LEVELS: { label: string; value: string }[] = [
   { label: "Class 11", value: "11" },
   { label: "Class 12", value: "12" },
-  { label: "Dropper",  value: "dropper" },
+  { label: "Dropper", value: "dropper" },
 ]
 
 const TARGET_YEARS = ["2025", "2026", "2027", "2028"]
