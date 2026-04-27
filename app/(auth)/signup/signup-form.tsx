@@ -2,6 +2,7 @@
 
 import Link from "next/link"
 import { useState } from "react"
+import { useSearchParams } from "next/navigation"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
@@ -9,6 +10,7 @@ import { toast } from "sonner"
 import { CheckCircle2, ArrowRight, ChevronDown } from "lucide-react"
 
 import { createClient } from "@/lib/supabase/client"
+import { processReferral } from "./actions"
 
 const signupSchema = z
   .object({
@@ -58,12 +60,16 @@ function GoogleIcon() {
 
 export default function SignupForm() {
   const supabase = createClient()
+  const searchParams = useSearchParams()
   const [submitting, setSubmitting] = useState(false)
   const [oauthLoading, setOauthLoading] = useState(false)
   const [verified, setVerified] = useState(false)
   const [resending, setResending] = useState(false)
   const [signupEmail, setSignupEmail] = useState("")
   const [emailExists, setEmailExists] = useState(false)
+
+  // Read referral code from URL (?ref=CODE)
+  const refCode = searchParams.get("ref") ?? ""
 
   const form = useForm<SignupValues>({
     resolver: zodResolver(signupSchema),
@@ -118,6 +124,16 @@ export default function SignupForm() {
         .eq("id", data.user.id)
       if (profileError) {
         console.warn("Failed to update profile:", profileError.message)
+      }
+
+      // Process referral if a ref code was provided
+      if (refCode && data.user.id) {
+        try {
+          await processReferral(refCode, data.user.id)
+        } catch (err) {
+          // Non-fatal — don't block signup
+          console.warn("Referral processing failed:", err)
+        }
       }
     }
 
@@ -218,6 +234,13 @@ export default function SignupForm() {
           <p className="text-sm text-[#c1c6d7] text-center">
             For the elite 1%.
           </p>
+          {/* Referral banner */}
+          {refCode && (
+            <div className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-emerald-500/15 px-3 py-1 text-xs font-medium text-emerald-400">
+              <CheckCircle2 className="size-3" />
+              Referral code applied — you&apos;ll get 50 bonus credits!
+            </div>
+          )}
         </header>
 
         {/* Google OAuth */}
@@ -244,6 +267,9 @@ export default function SignupForm() {
 
         {/* Form */}
         <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-5" noValidate>
+          {/* Hidden referral code field */}
+          {refCode && <input type="hidden" name="ref_code" value={refCode} />}
+
           {/* Full Name */}
           <div className="flex flex-col gap-1">
             <label

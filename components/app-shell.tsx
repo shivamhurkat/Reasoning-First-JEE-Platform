@@ -3,6 +3,7 @@
 import Link from "next/link"
 import {
   BookOpen,
+  Coins,
   Home,
   LogOut,
   Settings,
@@ -20,12 +21,15 @@ export type AppShellProfile = {
   email: string
   full_name: string | null
   role: string
+  credit_balance: number
+  plan: string
 }
 
 const BASE_NAV: NavItem[] = [
   { href: "/", label: "Home", icon: Home },
   { href: "/practice", label: "Practice", icon: BookOpen },
   { href: "/progress", label: "Progress", icon: TrendingUp },
+  { href: "/credits", label: "Credits", icon: Coins },
   { href: "/settings", label: "Settings", icon: Settings },
 ]
 
@@ -105,6 +109,17 @@ function SidebarBody({
           <p className="truncate text-xs text-muted-foreground">
             {profile.email}
           </p>
+          <Link
+            href="/credits"
+            className="mt-1.5 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <Coins className="size-3" />
+            <span className="tabular-nums">{profile.credit_balance}</span>
+            <span>credits</span>
+            {profile.plan === "pro" && (
+              <span className="ml-0.5 rounded px-1 text-[9px] font-bold bg-amber-500/20 text-amber-700">PRO</span>
+            )}
+          </Link>
         </div>
         <form action="/auth/signout" method="post">
           <Button

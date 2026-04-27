@@ -20,7 +20,7 @@ export default async function DashboardLayout({
 
   const { data: profileRow } = await supabase
     .from("user_profiles")
-    .select("full_name, email, role")
+    .select("full_name, email, role, credit_balance, plan")
     .eq("id", user.id)
     .single()
 
@@ -31,6 +31,8 @@ export default async function DashboardLayout({
     email: profileRow?.email ?? user.email ?? "",
     full_name: profileRow?.full_name ?? null,
     role: profileRow?.role ?? "student",
+    credit_balance: (profileRow as unknown as { credit_balance?: number } | null)?.credit_balance ?? 0,
+    plan: (profileRow as unknown as { plan?: string } | null)?.plan ?? "free",
   }
 
   return <AppShell profile={profile}>{children}</AppShell>

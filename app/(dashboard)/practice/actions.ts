@@ -150,7 +150,7 @@ export type SubmitAttemptInput = {
 
 export async function submitAttempt(
   input: SubmitAttemptInput
-): Promise<{ ok: true } | { ok: false; error: string }> {
+): Promise<{ ok: true } | { ok: false; error: string; code?: string }> {
   const auth = await authed()
   if (!auth.ok) return { ok: false, error: auth.error }
   const { supabase, userId } = auth
@@ -167,6 +167,48 @@ export async function submitAttempt(
   }
   if (session.ended_at) {
     return { ok: false, error: "Session already ended" }
+  }
+
+  // --- Credit deduction (skip attempts are free) ---
+  if (input.approach !== "skip") {
+    // Atomic check-and-deduct: only deducts if credit_balance > 0.
+    // If no row is returned, the user is out of credits.
+    const { data: deductResult, error: deductError } = await supabase
+      .rpc("deduct_credit", { p_user_id: userId })
+
+    if (deductError) {
+      // RPC may not exist on older schema — fallback to manual check
+      const { data: profile } = await supabase
+        .from("user_profiles")
+        .select("credit_balance")
+        .eq("id", userId)
+        .maybeSingle()
+
+      const balance = (profile as unknown as { credit_balance?: number } | null)?.credit_balance ?? 0
+      if (balance <= 0) {
+        return { ok: false, error: "You are out of credits", code: "no_credits" }
+      }
+
+      // Deduct manually (best-effort, not perfectly atomic without RPC)
+      await supabase
+        .from("user_profiles")
+        .update({ credit_balance: balance - 1 } as never)
+        .eq("id", userId)
+
+      // Log the credit transaction
+      await supabase.from("credit_transactions").insert({
+        user_id: userId,
+        type: "question_attempt",
+        amount: -1,
+        balance_after: balance - 1,
+        description: `Question attempt: ${input.questionId.slice(0, 8)}`,
+      } as never)
+    } else {
+      // RPC returns null if balance was already 0 (no update made)
+      if (deductResult === null || deductResult === false) {
+        return { ok: false, error: "You are out of credits", code: "no_credits" }
+      }
+    }
   }
 
   // submitted_answer is jsonb; our AnswerInput union is Json-compatible but

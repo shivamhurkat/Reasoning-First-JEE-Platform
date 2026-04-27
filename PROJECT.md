@@ -812,3 +812,96 @@ npm run start             # Run production build
 npm run lint              # ESLint
 npm run seed:questions    # Bulk-insert 10 JEE-style questions + solutions
 ```
+
+## Credits & Payments
+
+### Overview
+
+Every question attempt costs 1 credit (skip is free). Free users get 10 credits on signup and 10 more every month. Pro users get 1,000/month. Credits can also be purchased one-off or earned via referrals.
+
+### Schema additions (migration `0006_credits_and_payments.sql`)
+
+| Addition | Description |
+|---|---|
+| `user_profiles.credit_balance` | Current credit balance (default 10) |
+| `user_profiles.plan` | `'free'` or `'pro'` |
+| `user_profiles.plan_expires_at` | When the pro plan expires |
+| `user_profiles.referral_code` | Unique 8-char code, set by trigger |
+| `user_profiles.referred_by` | FK to the referrer's profile |
+| `user_profiles.credits_last_refreshed_at` | Tracks monthly refresh timing |
+| `credit_transactions` | Ledger of every credit movement (purchases, deductions, bonuses, refreshes) |
+| `referrals` | referrer_id → referred_id, credits_awarded |
+| `admin_config` | Key-value store for pricing, credit costs (seeded on migration) |
+| `deduct_credit(p_user_id)` | Postgres function — atomic check-and-deduct; returns false if balance = 0 |
+
+### Razorpay API routes
+
+| Route | Purpose |
+|---|---|
+| `POST /api/razorpay/create-order` | Creates a Razorpay order; inserts `payment_transactions` row with status=`created` |
+| `POST /api/razorpay/verify` | Verifies HMAC-SHA256 signature; grants credits/pro on success |
+| `POST /api/razorpay/webhook` | Backup handler for `payment.captured` / `payment.failed` events |
+
+All payment writes use the service role key to bypass RLS. The verify endpoint is the primary flow; the webhook catches edge cases (user closed browser mid-payment).
+
+### Credit deduction in practice flow
+
+`submitAttempt` (in `practice/actions.ts`) calls the `deduct_credit` Postgres RPC before recording the attempt. If balance = 0 it returns `{ ok: false, code: 'no_credits' }`. The `session-client.tsx` catches this and opens a paywall modal instead of showing results.
+
+Skip attempts are free (approach = 'skip' skips the deduction).
+
+### Paywall modal
+
+Shown in `session-client.tsx` when `no_credits` is returned. Options:
+- Buy 100 credits — ₹49 → `/credits?tab=buy`
+- Go Pro — ₹99/month → `/credits?tab=buy`
+- Refer a friend → `/credits?tab=refer`
+- View plans → `/credits`
+
+### Credits page (`/credits`)
+
+Three-tab page at `app/(dashboard)/credits/`:
+
+| Tab | Content |
+|---|---|
+| Buy Credits | Pro upgrade card + 4 top-up packages; each triggers Razorpay checkout inline |
+| Usage History | Paginated `credit_transactions` list (20/page); color-coded by type |
+| Refer & Earn | Referral code + shareable link, Copy + WhatsApp share, referral stats |
+
+Checkout flow: button → `POST /api/razorpay/create-order` → Razorpay modal → `POST /api/razorpay/verify` → UI balance updates → toast.
+
+### Credit display locations
+
+- **Dashboard home** (`/`): Coins pill next to Streak and XP
+- **Practice session header**: Color-coded credit pill (green → amber → red at ≤5)
+- **Desktop sidebar**: Credits count below user email
+- **Bottom nav** (mobile): "Credits" tab with coin icon (5th item)
+
+### Referral system
+
+`/signup?ref=CODE` triggers referral processing after account creation:
+1. `processReferral(code, newUserId)` server action looks up the referrer
+2. Inserts into `referrals` table
+3. +50 credits to referrer + log
+4. +50 credits to new user (on top of 10 signup bonus) + log
+5. Sets `user_profiles.referred_by`
+
+### Monthly credit cron
+
+`POST /api/cron/monthly-credits` — protected by `Authorization: Bearer {CRON_SECRET}`:
+- Free users → +10 credits
+- Active pro users → +1000 credits
+- Expired pro users → downgrade to free, +10 credits
+- Updates `credits_last_refreshed_at`
+
+Vercel cron schedule: `0 18 1 * *` (18:00 UTC = 23:30 IST on 1st of each month).
+
+### Environment variables added
+
+| Variable | Purpose |
+|---|---|
+| `NEXT_PUBLIC_RAZORPAY_KEY_ID` | Public key shown in Razorpay checkout modal |
+| `RAZORPAY_KEY_SECRET` | HMAC signing — server only |
+| `RAZORPAY_WEBHOOK_SECRET` | Webhook signature verification — optional but recommended |
+| `CRON_SECRET` | Bearer token for `/api/cron/*` endpoints |
+| `NEXT_PUBLIC_APP_URL` | Base URL used to generate referral links (e.g. `https://rankerskit.com`) |

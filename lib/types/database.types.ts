@@ -14,6 +14,24 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_config: {
+        Row: {
+          key: string
+          value: Json
+          updated_at: string
+        }
+        Insert: {
+          key: string
+          value: Json
+          updated_at?: string
+        }
+        Update: {
+          key?: string
+          value?: Json
+          updated_at?: string
+        }
+        Relationships: []
+      }
       chapters: {
         Row: {
           display_order: number
@@ -171,6 +189,47 @@ export type Database = {
           },
         ]
       }
+      credit_transactions: {
+        Row: {
+          id: string
+          user_id: string
+          type: string
+          amount: number
+          balance_after: number
+          description: string | null
+          payment_transaction_id: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          type: string
+          amount: number
+          balance_after: number
+          description?: string | null
+          payment_transaction_id?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          type?: string
+          amount?: number
+          balance_after?: number
+          description?: string | null
+          payment_transaction_id?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "credit_transactions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       daily_challenges: {
         Row: {
           challenge_date: string
@@ -237,6 +296,45 @@ export type Database = {
           {
             foreignKeyName: "payment_transactions_user_id_fkey"
             columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      referrals: {
+        Row: {
+          id: string
+          referrer_id: string
+          referred_id: string
+          credits_awarded: number
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          referrer_id: string
+          referred_id: string
+          credits_awarded?: number
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          referrer_id?: string
+          referred_id?: string
+          credits_awarded?: number
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "referrals_referrer_id_fkey"
+            columns: ["referrer_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "referrals_referred_id_fkey"
+            columns: ["referred_id"]
             isOneToOne: false
             referencedRelation: "user_profiles"
             referencedColumns: ["id"]
@@ -741,14 +839,21 @@ export type Database = {
         Row: {
           class_level: string | null
           created_at: string
+          credit_balance: number
           current_streak: number
           email: string
           full_name: string | null
           id: string
           last_active_date: string | null
+          lifetime_credits_purchased: number
           longest_streak: number
           onboarded_at: string | null
           phone: string | null
+          plan: string
+          plan_expires_at: string | null
+          credits_last_refreshed_at: string | null
+          referral_code: string | null
+          referred_by: string | null
           role: string
           school: string | null
           state: string | null
@@ -759,14 +864,21 @@ export type Database = {
         Insert: {
           class_level?: string | null
           created_at?: string
+          credit_balance?: number
           current_streak?: number
           email: string
           full_name?: string | null
           id: string
           last_active_date?: string | null
+          lifetime_credits_purchased?: number
           longest_streak?: number
           onboarded_at?: string | null
           phone?: string | null
+          plan?: string
+          plan_expires_at?: string | null
+          credits_last_refreshed_at?: string | null
+          referral_code?: string | null
+          referred_by?: string | null
           role?: string
           school?: string | null
           state?: string | null
@@ -777,14 +889,21 @@ export type Database = {
         Update: {
           class_level?: string | null
           created_at?: string
+          credit_balance?: number
           current_streak?: number
           email?: string
           full_name?: string | null
           id?: string
           last_active_date?: string | null
+          lifetime_credits_purchased?: number
           longest_streak?: number
           onboarded_at?: string | null
           phone?: string | null
+          plan?: string
+          plan_expires_at?: string | null
+          credits_last_refreshed_at?: string | null
+          referral_code?: string | null
+          referred_by?: string | null
           role?: string
           school?: string | null
           state?: string | null
@@ -799,7 +918,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      deduct_credit: {
+        Args: { p_user_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
       [_ in never]: never

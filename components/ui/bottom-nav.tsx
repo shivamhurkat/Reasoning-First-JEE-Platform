@@ -6,6 +6,7 @@ import { useState } from "react"
 import {
   BookOpen,
   Calendar,
+  Coins,
   Home,
   LogOut,
   Menu,
@@ -53,6 +54,12 @@ const NAV_ITEMS: NavItem[] = [
     label: "Progress",
     icon: TrendingUp,
     match: (p) => p === "/progress",
+  },
+  {
+    href: "/credits",
+    label: "Credits",
+    icon: Coins,
+    match: (p) => p.startsWith("/credits"),
   },
 ]
 

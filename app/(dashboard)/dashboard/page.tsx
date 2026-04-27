@@ -2,6 +2,7 @@ import Link from "next/link"
 import { formatDistanceToNowStrict } from "date-fns"
 import {
   ArrowRight,
+  Coins,
   Flame,
   Play,
   Sparkles,
@@ -35,7 +36,7 @@ export default async function DashboardHomePage() {
   const [profileRes, attemptsRes, sessionsRes] = await Promise.all([
     supabase
       .from("user_profiles")
-      .select("full_name, email, xp_total, current_streak, longest_streak, last_active_date")
+      .select("full_name, email, xp_total, current_streak, longest_streak, last_active_date, credit_balance, plan")
       .eq("id", user.id)
       .maybeSingle(),
     supabase
@@ -106,6 +107,8 @@ export default async function DashboardHomePage() {
 
   const streak = profile?.current_streak ?? 0
   const xp = profile?.xp_total ?? 0
+  const credits = (profile as unknown as { credit_balance?: number } | null)?.credit_balance ?? 0
+  const plan = (profile as unknown as { plan?: string } | null)?.plan ?? "free"
   const isOnboarding = totalAttempts === 0
 
   return (
@@ -120,8 +123,8 @@ export default async function DashboardHomePage() {
         </p>
       </div>
 
-      {/* ── Streak + XP compact row ── */}
-      <div className="flex items-center gap-2">
+      {/* ── Streak + XP + Credits compact row ── */}
+      <div className="flex flex-wrap items-center gap-2">
         <div
           className={cn(
             "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium",
@@ -137,6 +140,23 @@ export default async function DashboardHomePage() {
           <Trophy className="size-4" />
           {xp} XP
         </div>
+        <Link
+          href="/credits"
+          className={cn(
+            "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium transition-colors",
+            credits <= 5
+              ? "bg-red-500/10 text-red-700 hover:bg-red-500/15"
+              : credits <= 20
+                ? "bg-amber-500/10 text-amber-700 hover:bg-amber-500/15"
+                : "bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/15"
+          )}
+        >
+          <Coins className="size-4" />
+          {credits} credits
+          {plan === "pro" && (
+            <span className="ml-1 rounded px-1 py-0.5 text-[10px] font-semibold bg-amber-500/20 text-amber-700">PRO</span>
+          )}
+        </Link>
       </div>
 
       {/* ── Primary CTA ── */}

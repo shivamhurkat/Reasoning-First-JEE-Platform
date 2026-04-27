@@ -7,9 +7,13 @@ import {
   Check,
   CheckCircle2,
   Circle,
+  Coins,
+  Gift,
+  Sparkles,
   Timer,
   X,
   XCircle,
+  Zap,
 } from "lucide-react"
 
 import { cn } from "@/lib/utils"
@@ -78,6 +82,7 @@ export function SessionClient({
   initialQuestionNumber,
   initialCorrectCount,
   initialAttempted,
+  initialCreditBalance,
   question: initialQuestion,
   solutions: initialSolutions,
 }: {
@@ -86,6 +91,7 @@ export function SessionClient({
   initialQuestionNumber: number
   initialCorrectCount: number
   initialAttempted: number
+  initialCreditBalance: number
   question: QuestionData
   solutions: SolutionData[]
 }) {
@@ -101,6 +107,8 @@ export function SessionClient({
   const [answer, setAnswer] = useState<AnswerInput>(emptyAnswerFor(initialQuestion))
   const [isCorrect, setIsCorrect] = useState<boolean | null>(null)
   const [submittedTimeSec, setSubmittedTimeSec] = useState<number>(0)
+  const [creditBalance, setCreditBalance] = useState<number>(initialCreditBalance)
+  const [paywallOpen, setPaywallOpen] = useState(false)
 
   const [exitOpen, setExitOpen] = useState(false)
   const [pendingNext, startNext] = useTransition()
@@ -143,20 +151,30 @@ export function SessionClient({
     if (phase !== "solving" || !hasAnswer(answer)) return
     const timeTaken = Math.max(0, Math.floor((Date.now() - questionStartedAtRef.current) / 1000))
     const correctness = checkCorrectness(answer, question.correct_answer)
-    setSubmittedTimeSec(timeTaken)
-    setIsCorrect(correctness)
-    setStats((s) => ({
-      attempted: s.attempted + 1,
-      correct: s.correct + (correctness === true ? 1 : 0),
-    }))
-    setPhase("submitted")
+
     startSubmit(async () => {
       const res = await submitAttempt({
         sessionId, questionId: question.id, approach: "full_solve", answer,
         isCorrect: correctness === null ? null : correctness,
         timeTakenSeconds: timeTaken, approachChosenAt: null,
       })
-      if (!res.ok) console.warn("submitAttempt failed:", res.error)
+      if (!res.ok) {
+        if ((res as { code?: string }).code === "no_credits") {
+          setPaywallOpen(true)
+          return
+        }
+        console.warn("submitAttempt failed:", res.error)
+        return
+      }
+      // Deduct credit from local state
+      setCreditBalance((b) => Math.max(0, b - 1))
+      setSubmittedTimeSec(timeTaken)
+      setIsCorrect(correctness)
+      setStats((s) => ({
+        attempted: s.attempted + 1,
+        correct: s.correct + (correctness === true ? 1 : 0),
+      }))
+      setPhase("submitted")
     })
   }, [phase, answer, question, sessionId])
 
@@ -253,6 +271,7 @@ export function SessionClient({
         stats={stats}
         accuracyPct={accuracyPct}
         elapsedSec={elapsedSec}
+        creditBalance={creditBalance}
         running={phase !== "submitted" && phase !== "exhausted"}
         onExit={() => handleEnd(true)}
       />
@@ -333,6 +352,62 @@ export function SessionClient({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Paywall modal */}
+      <Dialog open={paywallOpen} onOpenChange={setPaywallOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <div className="mx-auto mb-2 flex size-12 items-center justify-center rounded-full bg-amber-500/15">
+              <Coins className="size-6 text-amber-500" />
+            </div>
+            <DialogTitle className="text-center">You&apos;re out of credits!</DialogTitle>
+            <DialogDescription className="text-center">
+              Top up to keep practising — every question sharpens your reasoning.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-2 py-2">
+            <Link
+              href="/credits?tab=buy"
+              onClick={() => setPaywallOpen(false)}
+              className="flex items-center justify-between rounded-xl border border-primary/30 bg-primary/5 px-4 py-3 text-sm font-medium hover:bg-primary/10 transition-colors min-h-[48px]"
+            >
+              <span className="flex items-center gap-2">
+                <Zap className="size-4 text-primary" />
+                Buy 100 credits
+              </span>
+              <span className="font-semibold text-primary">₹49</span>
+            </Link>
+            <Link
+              href="/credits?tab=buy"
+              onClick={() => setPaywallOpen(false)}
+              className="flex items-center justify-between rounded-xl border border-amber-500/30 bg-amber-500/5 px-4 py-3 text-sm font-medium hover:bg-amber-500/10 transition-colors min-h-[48px]"
+            >
+              <span className="flex items-center gap-2">
+                <Sparkles className="size-4 text-amber-600" />
+                Go Pro — 1000 credits/month
+              </span>
+              <span className="font-semibold text-amber-600">₹99/mo</span>
+            </Link>
+            <Link
+              href="/credits?tab=refer"
+              onClick={() => setPaywallOpen(false)}
+              className="flex items-center gap-2 justify-center rounded-xl border px-4 py-3 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors min-h-[48px]"
+            >
+              <Gift className="size-4" />
+              Refer a friend — earn 50 free credits
+            </Link>
+          </div>
+          <DialogFooter className="flex-col gap-2 sm:flex-col">
+            <Link
+              href="/credits"
+              onClick={() => setPaywallOpen(false)}
+              className="text-center text-xs text-muted-foreground underline underline-offset-4 hover:text-foreground"
+            >
+              View all plans
+            </Link>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
@@ -345,6 +420,7 @@ function SessionHeader({
   stats,
   accuracyPct,
   elapsedSec,
+  creditBalance,
   running,
   onExit,
 }: {
@@ -353,6 +429,7 @@ function SessionHeader({
   stats: SessionStats
   accuracyPct: number | null
   elapsedSec: number
+  creditBalance: number
   running: boolean
   onExit: () => void
 }) {
@@ -374,6 +451,23 @@ function SessionHeader({
           {scopeLabel}
         </span>
         <span className="flex-1 sm:hidden" aria-hidden />
+
+        {/* Credit balance pill */}
+        <Link
+          href="/credits"
+          className={cn(
+            "inline-flex items-center gap-1 rounded-full border px-2 py-1 text-xs font-medium tabular-nums transition-colors",
+            creditBalance <= 5
+              ? "border-red-500/40 bg-red-500/10 text-red-600 hover:bg-red-500/15"
+              : creditBalance <= 20
+                ? "border-amber-500/40 bg-amber-500/10 text-amber-700 hover:bg-amber-500/15"
+                : "border-border bg-muted/50 text-muted-foreground hover:bg-muted"
+          )}
+          aria-label={`${creditBalance} credits remaining`}
+        >
+          <Coins className="size-3" />
+          {creditBalance}
+        </Link>
 
         {/* Timer */}
         <div

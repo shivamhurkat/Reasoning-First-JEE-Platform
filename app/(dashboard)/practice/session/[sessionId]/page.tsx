@@ -21,13 +21,24 @@ export default async function SessionPage({
   } = await supabase.auth.getUser()
   if (!user) redirect("/login")
 
-  const { data: session, error } = await supabase
-    .from("practice_sessions")
-    .select(
-      "id, user_id, ended_at, started_at, topic_id, chapter_id, subject_id, session_type, topics(name), chapters(name), subjects(name)"
-    )
-    .eq("id", params.sessionId)
-    .maybeSingle()
+  // Fetch credit balance alongside session data
+  const [sessionRes, profileRes] = await Promise.all([
+    supabase
+      .from("practice_sessions")
+      .select(
+        "id, user_id, ended_at, started_at, topic_id, chapter_id, subject_id, session_type, topics(name), chapters(name), subjects(name)"
+      )
+      .eq("id", params.sessionId)
+      .maybeSingle(),
+    supabase
+      .from("user_profiles")
+      .select("credit_balance")
+      .eq("id", user.id)
+      .maybeSingle(),
+  ])
+
+  const { data: session, error } = sessionRes
+  const creditBalance = (profileRes.data as unknown as { credit_balance?: number } | null)?.credit_balance ?? 0
 
   if (error || !session) notFound()
   if (session.user_id !== user.id) notFound()
@@ -80,6 +91,7 @@ export default async function SessionPage({
       initialQuestionNumber={(attemptsSoFar ?? 0) + 1}
       initialCorrectCount={0}
       initialAttempted={0}
+      initialCreditBalance={creditBalance}
       question={full.question}
       solutions={full.solutions}
     />
