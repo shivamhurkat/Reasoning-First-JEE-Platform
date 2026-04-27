@@ -701,13 +701,53 @@ Use this for any button that triggers an async server action, especially where
 ## Signup flow
 
 - **full_name** is nullable in DB (migration `0004_fix_fullname.sql`). Migration `0005_fix_user_trigger.sql` fixes `handle_new_user()` to also capture `full_name` from Google OAuth metadata (`raw_user_meta_data->>'full_name'` or `raw_user_meta_data->>'name'`). For email/password signup, the client still updates `full_name` immediately after `auth.signUp` succeeds.
-- Optional fields added: **phone** and **target_exam** (JEE Mains / JEE Advanced / NEET / Other).
-- Both are written to `user_profiles` immediately after `auth.signUp` succeeds.
+- Signup form collects **only**: full name (required), email (required), password (required), phone (optional), referral code (optional). No exam/class selection — those are collected in the onboarding modal.
 - After signup, user sees an inline verification panel (not just a toast) with a
   "Resend verification email" button. No redirect to /login until they choose.
 - Auth callback (`/app/auth/callback/route.ts`): if `type=signup` query param is
   present (set by our `emailRedirectTo` URL), redirects to `/login?verified=true`.
 - Login page shows a green "Email verified!" banner when `?verified=true` is in the URL.
+
+## Onboarding Modal
+
+New users see a multi-step modal overlaid **on top of the dashboard** (`/dashboard`). The dashboard is visible but blurred and non-interactive underneath.
+
+### How it works
+
+- **DB flag**: `user_profiles.onboarding_completed boolean NOT NULL DEFAULT false` (migration `0008_onboarding.sql`).
+- **Server component** (`app/(dashboard)/dashboard/page.tsx`) fetches `onboarding_completed` in the same `Promise.all` as profile data. If `false`, renders `<OnboardingModal>` above the dashboard grid.
+- Once the user completes or skips onboarding, the server action `saveOnboarding` sets `onboarding_completed = true` in the DB and calls `revalidatePath('/dashboard')`. The page re-renders without the modal — **no client-side state involved**.
+- Existing users were back-filled to `onboarding_completed = true` by the migration's `UPDATE` statements.
+
+### Modal steps
+
+| Step | Shown for |
+|------|----------|
+| 1 — Who are you? | All users (5 type cards: Student / Teacher / Contributor / Parent / Exploring) |
+| 2 — Details | Student (exam + class + year + institute + city), Teacher (subjects + city), Contributor (exam cleared + year). Skipped for Parent / Exploring. |
+| 3 — You're all set! | All users |
+
+- Clicking a card highlights it but does **not** auto-advance. "Next →" button confirms.
+- "Skip for now" link on every step saves `onboarding_completed = true` with no other data.
+- Modal has **no close button** and cannot be dismissed by clicking outside.
+- Backdrop: `backdrop-blur-sm bg-black/30` — dashboard is visible, blurred, pointer-events blocked by the backdrop overlay.
+
+### Files
+
+```
+components/onboarding/
+  onboarding-modal.tsx   "use client" multi-step modal
+  actions.ts             saveOnboarding() server action
+```
+
+### New DB columns (migration 0008)
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `user_type` | `text CHECK(...)` | student / teacher / contributor / parent / other |
+| `coaching_institute` | `text` | Optional, students only |
+| `city` | `text` | Optional |
+| `onboarding_completed` | `boolean NOT NULL DEFAULT false` | Single source of truth for modal visibility |
 
 ## Mobile responsive approach
 

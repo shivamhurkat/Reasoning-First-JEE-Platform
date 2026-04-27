@@ -837,7 +837,9 @@ export type Database = {
       }
       user_profiles: {
         Row: {
+          city: string | null
           class_level: string | null
+          coaching_institute: string | null
           created_at: string
           credit_balance: number
           current_streak: number
@@ -848,6 +850,7 @@ export type Database = {
           lifetime_credits_purchased: number
           longest_streak: number
           onboarded_at: string | null
+          onboarding_completed: boolean
           phone: string | null
           plan: string
           plan_expires_at: string | null
@@ -859,10 +862,13 @@ export type Database = {
           state: string | null
           target_exam: string
           target_year: number | null
+          user_type: 'student' | 'teacher' | 'contributor' | 'parent' | 'other' | null
           xp_total: number
         }
         Insert: {
+          city?: string | null
           class_level?: string | null
+          coaching_institute?: string | null
           created_at?: string
           credit_balance?: number
           current_streak?: number
@@ -873,6 +879,7 @@ export type Database = {
           lifetime_credits_purchased?: number
           longest_streak?: number
           onboarded_at?: string | null
+          onboarding_completed?: boolean
           phone?: string | null
           plan?: string
           plan_expires_at?: string | null
@@ -884,10 +891,13 @@ export type Database = {
           state?: string | null
           target_exam?: string
           target_year?: number | null
+          user_type?: 'student' | 'teacher' | 'contributor' | 'parent' | 'other' | null
           xp_total?: number
         }
         Update: {
+          city?: string | null
           class_level?: string | null
+          coaching_institute?: string | null
           created_at?: string
           credit_balance?: number
           current_streak?: number
@@ -898,6 +908,7 @@ export type Database = {
           lifetime_credits_purchased?: number
           longest_streak?: number
           onboarded_at?: string | null
+          onboarding_completed?: boolean
           phone?: string | null
           plan?: string
           plan_expires_at?: string | null
@@ -909,6 +920,7 @@ export type Database = {
           state?: string | null
           target_exam?: string
           target_year?: number | null
+          user_type?: 'student' | 'teacher' | 'contributor' | 'parent' | 'other' | null
           xp_total?: number
         }
         Relationships: []

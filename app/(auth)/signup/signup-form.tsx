@@ -7,7 +7,7 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { toast } from "sonner"
-import { CheckCircle2, ArrowRight, ChevronDown } from "lucide-react"
+import { CheckCircle2, ArrowRight } from "lucide-react"
 
 import { createClient } from "@/lib/supabase/client"
 import { processReferral } from "./actions"
@@ -26,7 +26,6 @@ const signupSchema = z
       .regex(/\d/, "Password must contain at least one number"),
     confirm_password: z.string(),
     phone: z.string().trim().max(20).optional(),
-    target_exam: z.enum(["JEE Mains", "JEE Advanced", "NEET", "Other"]).optional(),
     referral_code: z.string().trim().max(20).optional(),
   })
   .refine((data) => data.password === data.confirm_password, {
@@ -86,7 +85,6 @@ export default function SignupForm({
       password: "",
       confirm_password: "",
       phone: "",
-      target_exam: undefined,
       referral_code: refCode,
     },
   })
@@ -120,14 +118,13 @@ export default function SignupForm({
       return
     }
 
-    // Update user_profiles with all provided fields
+    // Update user_profiles with provided fields
     if (data.user) {
       const { error: profileError } = await supabase
         .from("user_profiles")
         .update({
           full_name: trimmedName,
           phone: values.phone?.trim() || null,
-          target_exam: values.target_exam ?? "JEE Mains",
         })
         .eq("id", data.user.id)
       if (profileError) {
@@ -392,33 +389,6 @@ export default function SignupForm({
               {...register("phone")}
               className="w-full bg-[#0c0e12] text-[#e2e2e8] text-sm border-b border-[#333539] rounded-t px-4 py-3 outline-none focus:border-[#005bc1] transition-colors placeholder:text-[#c1c6d7]/40"
             />
-          </div>
-
-          {/* Target Exam (optional) */}
-          <div className="flex flex-col gap-1">
-            <label
-              htmlFor="preparingFor"
-              className="text-xs font-semibold uppercase tracking-widest text-[#c1c6d7] ml-1"
-            >
-              Preparing For?{" "}
-              <span className="normal-case tracking-normal font-normal text-[#c1c6d7]/60">
-                (Optional)
-              </span>
-            </label>
-            <div className="relative">
-              <select
-                id="preparingFor"
-                {...register("target_exam")}
-                className="w-full bg-[#0c0e12] text-[#e2e2e8] text-sm border-b border-[#333539] rounded-t px-4 py-3 outline-none focus:border-[#005bc1] transition-colors appearance-none cursor-pointer"
-              >
-                <option value="">Select your exam</option>
-                <option value="JEE Mains">JEE Mains</option>
-                <option value="JEE Advanced">JEE Advanced</option>
-                <option value="NEET">NEET</option>
-                <option value="Other">Other</option>
-              </select>
-              <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 size-4 text-[#c1c6d7] pointer-events-none" />
-            </div>
           </div>
 
           {/* Referral Code (optional) — only shown if referral program is enabled */}

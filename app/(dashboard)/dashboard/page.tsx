@@ -15,6 +15,7 @@ import { createClient } from "@/lib/supabase/server"
 import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { OnboardingModal } from "@/components/onboarding/onboarding-modal"
 
 export const dynamic = "force-dynamic"
 
@@ -36,7 +37,7 @@ export default async function DashboardHomePage() {
   const [profileRes, attemptsRes, sessionsRes] = await Promise.all([
     supabase
       .from("user_profiles")
-      .select("full_name, email, xp_total, current_streak, longest_streak, last_active_date, credit_balance, plan")
+      .select("full_name, email, xp_total, current_streak, longest_streak, last_active_date, credit_balance, plan, onboarding_completed")
       .eq("id", user.id)
       .maybeSingle(),
     supabase
@@ -109,9 +110,12 @@ export default async function DashboardHomePage() {
   const xp = profile?.xp_total ?? 0
   const credits = (profile as unknown as { credit_balance?: number } | null)?.credit_balance ?? 0
   const plan = (profile as unknown as { plan?: string } | null)?.plan ?? "free"
+  const onboardingCompleted = (profile as unknown as { onboarding_completed?: boolean } | null)?.onboarding_completed ?? true
   const isOnboarding = totalAttempts === 0
 
   return (
+    <>
+    {!onboardingCompleted && <OnboardingModal userName={rawName} />}
     <div className="grid gap-6">
       {/* ── Greeting row ── */}
       <div>
@@ -274,6 +278,7 @@ export default async function DashboardHomePage() {
         </p>
       ) : null}
     </div>
+    </>
   )
 }
 
