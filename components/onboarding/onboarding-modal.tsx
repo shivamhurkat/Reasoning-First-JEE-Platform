@@ -4,7 +4,7 @@ import { useState, useTransition } from "react"
 import { Check } from "lucide-react"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
-import { saveOnboarding, type OnboardingData } from "./actions"
+import { saveOnboarding, type OnboardingData, type TargetExam, type ClassLevel } from "./actions"
 
 // ─────────────────────────────────────────────
 // Types
@@ -99,13 +99,18 @@ function ProgressDots({ total, current }: { total: number; current: number }) {
 // Step 2 — Student
 // ─────────────────────────────────────────────
 
-const EXAMS = ["JEE Mains", "JEE Advanced", "NEET"]
+// UI label → DB value (constraint: 'jee_mains' | 'jee_advanced' | 'neet')
+const EXAMS: { label: string; value: TargetExam }[] = [
+  { label: "JEE Mains",    value: "jee_mains" },
+  { label: "JEE Advanced", value: "jee_advanced" },
+  { label: "NEET",         value: "neet" },
+]
 
-// UI label → DB value mapping (constraint: '11' | '12' | 'dropper')
-const CLASS_LEVELS: { label: string; value: string }[] = [
+// UI label → DB value (constraint: '11' | '12' | 'dropper')
+const CLASS_LEVELS: { label: string; value: ClassLevel }[] = [
   { label: "Class 11", value: "11" },
   { label: "Class 12", value: "12" },
-  { label: "Dropper", value: "dropper" },
+  { label: "Dropper",  value: "dropper" },
 ]
 
 const TARGET_YEARS = ["2025", "2026", "2027", "2028"]
@@ -125,11 +130,11 @@ function StudentStep({
         <div className="grid grid-cols-3 gap-2">
           {EXAMS.map((exam) => (
             <SelectCard
-              key={exam}
-              selected={data.target_exam === exam}
-              onClick={() => onChange({ ...data, target_exam: exam })}
+              key={exam.value}
+              selected={data.target_exam === exam.value}
+              onClick={() => onChange({ ...data, target_exam: exam.value })}
             >
-              <span className="text-sm font-medium leading-snug">{exam}</span>
+              <span className="text-sm font-medium leading-snug">{exam.label}</span>
             </SelectCard>
           ))}
         </div>
@@ -252,14 +257,23 @@ function TeacherStep({
 // Step 2 — Contributor
 // ─────────────────────────────────────────────
 
-const CLEARED_EXAMS = ["JEE Mains", "JEE Advanced", "NEET", "Other"]
+// UI label → DB value. "Other" is not in DB constraint so value is null — we skip writing target_exam in that case.
+const CLEARED_EXAMS: { label: string; value: TargetExam | null }[] = [
+  { label: "JEE Mains",    value: "jee_mains" },
+  { label: "JEE Advanced", value: "jee_advanced" },
+  { label: "NEET",         value: "neet" },
+  { label: "Other",        value: null },
+]
+
+// Local state for contributor tracks the raw selection key (label), separate from DB value
+type ContributorData = Partial<OnboardingData> & { year_cleared?: string; cleared_exam_label?: string }
 
 function ContributorStep({
   data,
   onChange,
 }: {
-  data: Partial<OnboardingData> & { year_cleared?: string }
-  onChange: (d: Partial<OnboardingData> & { year_cleared?: string }) => void
+  data: ContributorData
+  onChange: (d: ContributorData) => void
 }) {
   return (
     <div className="flex flex-col gap-5">
@@ -268,11 +282,16 @@ function ContributorStep({
         <div className="grid grid-cols-2 gap-2">
           {CLEARED_EXAMS.map((exam) => (
             <SelectCard
-              key={exam}
-              selected={data.target_exam === exam}
-              onClick={() => onChange({ ...data, target_exam: exam })}
+              key={exam.label}
+              selected={data.cleared_exam_label === exam.label}
+              onClick={() => onChange({
+                ...data,
+                cleared_exam_label: exam.label,
+                // Only write target_exam if DB allows the value; skip for "Other"
+                target_exam: exam.value ?? undefined,
+              })}
             >
-              <span className="text-sm font-medium">{exam}</span>
+              <span className="text-sm font-medium">{exam.label}</span>
             </SelectCard>
           ))}
         </div>
@@ -323,7 +342,7 @@ function DoneStep({ userType, userName }: { userType: UserType; userName: string
 // Main modal
 // ─────────────────────────────────────────────
 
-type ExtData = Partial<OnboardingData> & { subjects?: string[]; year_cleared?: string }
+type ExtData = Partial<OnboardingData> & { subjects?: string[]; year_cleared?: string; cleared_exam_label?: string }
 
 export function OnboardingModal({ userName }: OnboardingModalProps) {
   const [step, setStep] = useState(0)
@@ -342,9 +361,9 @@ export function OnboardingModal({ userName }: OnboardingModalProps) {
         ...stepData,
         ...extraData,
       }
-      // Remove non-db keys
-      const { subjects: _s, year_cleared: _y, ...dbPayload } = payload as ExtData
-      void _s; void _y
+      // Strip UI-only keys before sending to DB
+      const { subjects: _s, year_cleared: _y, cleared_exam_label: _c, ...dbPayload } = payload as ExtData
+      void _s; void _y; void _c
 
       const result = await saveOnboarding(dbPayload)
       if (!result.ok) {

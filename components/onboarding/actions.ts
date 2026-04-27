@@ -3,10 +3,14 @@
 import { revalidatePath } from "next/cache"
 import { createClient } from "@/lib/supabase/server"
 
+// DB constraint values — MUST match check constraints in 0001_init.sql exactly
+export type TargetExam = "jee_mains" | "jee_advanced" | "neet"
+export type ClassLevel = "11" | "12" | "dropper"
+
 export type OnboardingData = {
   user_type?: "student" | "teacher" | "contributor" | "parent" | "other"
-  target_exam?: string
-  class_level?: string
+  target_exam?: TargetExam
+  class_level?: ClassLevel
   target_year?: number
   coaching_institute?: string
   city?: string
