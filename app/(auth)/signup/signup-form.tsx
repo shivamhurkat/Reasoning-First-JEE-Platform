@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { useState } from "react"
-import { useSearchParams } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
@@ -66,6 +66,7 @@ export default function SignupForm({
   bonusCredits?: number
 }) {
   const supabase = createClient()
+  const router = useRouter()
   const searchParams = useSearchParams()
   const [submitting, setSubmitting] = useState(false)
   const [oauthLoading, setOauthLoading] = useState(false)
@@ -141,6 +142,12 @@ export default function SignupForm({
           console.warn("Referral processing failed:", err)
         }
       }
+    }
+
+    if (data.session) {
+      router.push("/dashboard")
+      router.refresh()
+      return
     }
 
     setSubmitting(false)
